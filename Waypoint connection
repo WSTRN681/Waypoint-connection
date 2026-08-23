@@ -1,0 +1,388 @@
+-- WAYPOINT MANAGER v1.0 — STRN HUB STYLE
+
+local Players=game:GetService("Players")
+local UIS=game:GetService("UserInputService")
+local HS=game:GetService("HttpService")
+local Plr=Players.LocalPlayer
+local PG=Plr:WaitForChild("PlayerGui")
+local Cam=workspace.CurrentCamera
+
+if PG:FindFirstChild("WaypointManagerGUI") then PG:FindFirstChild("WaypointManagerGUI"):Destroy() end
+
+local wps={}
+local MAX=50
+local CFG="WAYPOINT_MANAGER_DATA"
+
+local BG=Color3.fromRGB(20,20,25)
+local BTN=Color3.fromRGB(35,35,43)
+local BTH=Color3.fromRGB(50,50,60)
+local CS=Color3.fromRGB(35,125,255)
+local ONC=Color3.fromRGB(70,180,255)
+local TXT=Color3.fromRGB(235,235,240)
+local STXT=Color3.fromRGB(150,150,160)
+local RED=Color3.fromRGB(220,50,50)
+local GRN=Color3.fromRGB(70,255,70)
+local YEL=Color3.fromRGB(255,200,50)
+
+local function getRoot() local ch=Plr.Character if not ch then return nil end return ch:FindFirstChild("HumanoidRootPart") end
+
+local function save()
+    local d={wps=wps}
+    local j=HS:JSONEncode(d)
+    pcall(function() HS:SetAsync(CFG,j) end)
+end
+
+local function load()
+    local s,j=pcall(function() return HS:GetAsync(CFG) end)
+    if s and j then
+        local d=HS:JSONDecode(j)
+        if d and d.wps then wps=d.wps return true end
+    end
+    return false
+end
+
+local gui=Instance.new("ScreenGui")
+gui.Name="WaypointManagerGUI"
+gui.ResetOnSpawn=false
+gui.IgnoreGuiInset=true
+gui.ZIndexBehavior=Enum.ZIndexBehavior.Global
+gui.DisplayOrder=999998
+gui.Parent=PG
+
+local vp=Cam.ViewportSize
+local mw=math.clamp(vp.X*0.82,270,330)
+local mh=math.clamp(vp.Y*0.62,360,430)
+
+local fr=Instance.new("Frame")
+fr.Size=UDim2.fromOffset(mw,mh)
+fr.Position=UDim2.new(0.5,-mw/2,0.5,-mh/2)
+fr.BackgroundColor3=BG
+fr.BorderSizePixel=0
+fr.Active=true
+fr.ZIndex=100
+fr.Parent=gui
+local fc=Instance.new("UICorner")
+fc.CornerRadius=UDim.new(0,15)
+fc.Parent=fr
+local fs=Instance.new("UIStroke")
+fs.Color=Color3.fromRGB(80,80,90)
+fs.Thickness=1
+fs.Parent=fr
+
+local ttl=Instance.new("TextLabel")
+ttl.Size=UDim2.new(1,-60,0,42)
+ttl.Position=UDim2.fromOffset(14,5)
+ttl.BackgroundTransparency=1
+ttl.Text="📍 Waypoint Manager"
+ttl.TextColor3=TXT
+ttl.TextSize=24
+ttl.Font=Enum.Font.GothamBold
+ttl.TextXAlignment=Enum.TextXAlignment.Left
+ttl.ZIndex=110
+ttl.Parent=fr
+
+local cls=Instance.new("TextButton")
+cls.Size=UDim2.fromOffset(32,32)
+cls.Position=UDim2.new(1,-42,0,10)
+cls.BackgroundColor3=BTN
+cls.BorderSizePixel=0
+cls.Text="✕"
+cls.TextColor3=TXT
+cls.TextSize=16
+cls.Font=Enum.Font.GothamBold
+cls.AutoButtonColor=false
+cls.ZIndex=120
+cls.Parent=fr
+local clc=Instance.new("UICorner")
+clc.CornerRadius=UDim.new(0,8)
+clc.Parent=cls
+cls.MouseButton1Click:Connect(function() gui:Destroy() end)
+
+local idm=false
+local dsp,dsm
+cls.MouseButton1Down:Connect(function() idm=true dsp=fr.Position dsm=UIS:GetMouseLocation() end)
+UIS.InputChanged:Connect(function(i) if not idm then return end if i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch then local cm=UIS:GetMouseLocation() local d=cm-dsm fr.Position=UDim2.new(dsp.X.Scale,dsp.X.Offset+d.X,dsp.Y.Scale,dsp.Y.Offset+d.Y) end end)
+UIS.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then idm=false end end)
+
+local pg=Instance.new("ScrollingFrame")
+pg.Size=UDim2.new(1,-20,1,-105)
+pg.Position=UDim2.fromOffset(10,100)
+pg.BackgroundTransparency=1
+pg.BorderSizePixel=0
+pg.ScrollBarThickness=5
+pg.ScrollBarImageColor3=Color3.fromRGB(100,100,110)
+pg.ScrollingDirection=Enum.ScrollingDirection.Y
+pg.CanvasSize=UDim2.new(0,0,0,0)
+pg.Active=true
+pg.Selectable=false
+pg.ZIndex=105
+pg.Parent=fr
+
+local cont=Instance.new("Frame")
+cont.Size=UDim2.new(1,0,0,0)
+cont.BackgroundTransparency=1
+cont.ZIndex=106
+cont.Parent=pg
+
+local lay=Instance.new("UIListLayout")
+lay.Padding=UDim.new(0,6)
+lay.SortOrder=Enum.SortOrder.LayoutOrder
+lay.Parent=cont
+
+local function upc()
+    task.wait()
+    local h=cont.AbsoluteSize.Y+20
+    pg.CanvasSize=UDim2.new(0,0,0,math.max(h,100))
+end
+
+local addBtn=Instance.new("TextButton")
+addBtn.Size=UDim2.new(1,-10,0,45)
+addBtn.Position=UDim2.fromOffset(5,0)
+addBtn.BackgroundColor3=CS
+addBtn.BorderSizePixel=0
+addBtn.Text="➕ Add Waypoint"
+addBtn.TextColor3=TXT
+addBtn.TextSize=14
+addBtn.Font=Enum.Font.GothamMedium
+addBtn.AutoButtonColor=false
+addBtn.ZIndex=115
+addBtn.Parent=cont
+local ac=Instance.new("UICorner")
+ac.CornerRadius=UDim.new(0,10)
+ac.Parent=addBtn
+addBtn.MouseEnter:Connect(function() if addBtn.BackgroundColor3==CS then addBtn.BackgroundColor3=BTH end end)
+addBtn.MouseLeave:Connect(function() if addBtn.BackgroundColor3==BTH then addBtn.BackgroundColor3=CS end end)
+
+addBtn.MouseButton1Click:Connect(function()
+    local ch=Plr.Character
+    if not ch then
+        addBtn.Text="⏳ Waiting..."
+        addBtn.BackgroundColor3=YEL
+        local s=Plr.CharacterAdded:Wait()
+        if s then addBtn.Text="➕ Add Waypoint" addBtn.BackgroundColor3=CS addBtn.MouseButton1Click:Fire() end
+        return
+    end
+    local r=ch:FindFirstChild("HumanoidRootPart")
+    if not r then
+        addBtn.Text="⚠️ No RootPart!"
+        addBtn.BackgroundColor3=RED
+        task.wait(1)
+        addBtn.Text="➕ Add Waypoint"
+        addBtn.BackgroundColor3=CS
+        return
+    end
+    if #wps>=MAX then
+        addBtn.Text="⚠️ Max "..MAX.."!"
+        addBtn.BackgroundColor3=RED
+        task.wait(1.5)
+        addBtn.Text="➕ Add Waypoint"
+        addBtn.BackgroundColor3=CS
+        return
+    end
+    local p=r.Position
+    local n="Waypoint "..(#wps+1)
+    table.insert(wps,{name=n,X=p.X,Y=p.Y,Z=p.Z})
+    save()
+    refresh()
+    addBtn.Text="✅ Added!"
+    addBtn.BackgroundColor3=GRN
+    task.wait(0.8)
+    addBtn.Text="➕ Add Waypoint"
+    addBtn.BackgroundColor3=CS
+end)
+
+local wpbs={}
+
+local function refresh()
+    for _,b in ipairs(wpbs) do if b and b.Parent then b:Destroy() end end
+    wpbs={}
+    if #wps==0 then
+        local el=Instance.new("TextLabel")
+        el.Size=UDim2.new(1,-10,0,40)
+        el.BackgroundTransparency=1
+        el.Text="Belum ada waypoint."
+        el.TextColor3=STXT
+        el.TextSize=13
+        el.Font=Enum.Font.Gotham
+        el.TextXAlignment=Enum.TextXAlignment.Center
+        el.ZIndex=115
+        el.Parent=cont
+        table.insert(wpbs,el)
+        upc()
+        return
+    end
+    for i,wp in ipairs(wps) do
+        local r=Instance.new("Frame")
+        r.Size=UDim2.new(1,-10,0,55)
+        r.BackgroundColor3=BTN
+        r.BorderSizePixel=0
+        r.ZIndex=116
+        r.Parent=cont
+        local rc=Instance.new("UICorner")
+        rc.CornerRadius=UDim.new(0,10)
+        rc.Parent=r
+
+        local nl=Instance.new("TextLabel")
+        nl.Size=UDim2.new(0.4,-10,1,0)
+        nl.Position=UDim2.fromOffset(8,0)
+        nl.BackgroundTransparency=1
+        nl.Text=wp.name
+        nl.TextColor3=TXT
+        nl.TextSize=13
+        nl.Font=Enum.Font.GothamBold
+        nl.TextXAlignment=Enum.TextXAlignment.Left
+        nl.TextTruncate=Enum.TextTruncate.AtEnd
+        nl.ZIndex=117
+        nl.Parent=r
+
+        local cl=Instance.new("TextLabel")
+        cl.Size=UDim2.new(0.3,-10,1,0)
+        cl.Position=UDim2.new(0.4,0,0,0)
+        cl.BackgroundTransparency=1
+        cl.Text=string.format("%.0f, %.0f, %.0f",wp.X,wp.Y,wp.Z)
+        cl.TextColor3=STXT
+        cl.TextSize=10
+        cl.Font=Enum.Font.Gotham
+        cl.TextXAlignment=Enum.TextXAlignment.Center
+        cl.ZIndex=117
+        cl.Parent=r
+
+        local tpBtn=Instance.new("TextButton")
+        tpBtn.Size=UDim2.fromOffset(40,30)
+        tpBtn.Position=UDim2.new(0.7,0,0.5,-15)
+        tpBtn.BackgroundColor3=ONC
+        tpBtn.BorderSizePixel=0
+        tpBtn.Text="TP"
+        tpBtn.TextColor3=TXT
+        tpBtn.TextSize=12
+        tpBtn.Font=Enum.Font.GothamBold
+        tpBtn.AutoButtonColor=false
+        tpBtn.ZIndex=120
+        tpBtn.Parent=r
+        local tpc=Instance.new("UICorner")
+        tpc.CornerRadius=UDim.new(0,8)
+        tpc.Parent=tpBtn
+
+        local rnBtn=Instance.new("TextButton")
+        rnBtn.Size=UDim2.fromOffset(35,30)
+        rnBtn.Position=UDim2.new(0.85,0,0.5,-15)
+        rnBtn.BackgroundColor3=BTH
+        rnBtn.BorderSizePixel=0
+        rnBtn.Text="✏️"
+        rnBtn.TextColor3=TXT
+        rnBtn.TextSize=13
+        rnBtn.Font=Enum.Font.GothamBold
+        rnBtn.AutoButtonColor=false
+        rnBtn.ZIndex=120
+        rnBtn.Parent=r
+        local rnc=Instance.new("UICorner")
+        rnc.CornerRadius=UDim.new(0,8)
+        rnc.Parent=rnBtn
+
+        local delBtn=Instance.new("TextButton")
+        delBtn.Size=UDim2.fromOffset(28,28)
+        delBtn.Position=UDim2.new(0.97,0,0.5,-14)
+        delBtn.BackgroundColor3=RED
+        delBtn.BorderSizePixel=0
+        delBtn.Text="✕"
+        delBtn.TextColor3=TXT
+        delBtn.TextSize=12
+        delBtn.Font=Enum.Font.GothamBold
+        delBtn.AutoButtonColor=false
+        delBtn.ZIndex=120
+        delBtn.Parent=r
+        local delc=Instance.new("UICorner")
+        delc.CornerRadius=UDim.new(0,6)
+        delc.Parent=delBtn
+
+        tpBtn.MouseButton1Click:Connect(function()
+            local r=getRoot()
+            if not r then return end
+            r.CFrame=CFrame.new(Vector3.new(wp.X,wp.Y,wp.Z))
+            tpBtn.Text="✅"
+            tpBtn.BackgroundColor3=GRN
+            task.wait(0.5)
+            tpBtn.Text="TP"
+            tpBtn.BackgroundColor3=ONC
+        end)
+
+        rnBtn.MouseButton1Click:Connect(function()
+            local inp=Instance.new("TextBox")
+            inp.Size=UDim2.new(1,-20,0,40)
+            inp.Position=UDim2.fromOffset(10,10)
+            inp.BackgroundColor3=BTN
+            inp.BorderSizePixel=0
+            inp.PlaceholderText="Nama baru..."
+            inp.PlaceholderColor3=STXT
+            inp.TextColor3=TXT
+            inp.TextSize=14
+            inp.Font=Enum.Font.GothamMedium
+            inp.Text=wp.name
+            inp.ClearTextOnFocus=true
+            inp.ZIndex=130
+            inp.Parent=fr
+
+            local cf=Instance.new("TextButton")
+            cf.Size=UDim2.fromOffset(60,34)
+            cf.Position=UDim2.new(1,-70,0,55)
+            cf.BackgroundColor3=ONC
+            cf.BorderSizePixel=0
+            cf.Text="OK"
+            cf.TextColor3=TXT
+            cf.TextSize=14
+            cf.Font=Enum.Font.GothamBold
+            cf.AutoButtonColor=false
+            cf.ZIndex=130
+            cf.Parent=fr
+            local cfc=Instance.new("UICorner")
+            cfc.CornerRadius=UDim.new(0,8)
+            cfc.Parent=cf
+
+            local can=Instance.new("TextButton")
+            can.Size=UDim2.fromOffset(60,34)
+            can.Position=UDim2.new(1,-140,0,55)
+            can.BackgroundColor3=BTN
+            can.BorderSizePixel=0
+            can.Text="✕"
+            can.TextColor3=TXT
+            can.TextSize=14
+            can.Font=Enum.Font.GothamBold
+            can.AutoButtonColor=false
+            can.ZIndex=130
+            can.Parent=fr
+            local canc=Instance.new("UICorner")
+            canc.CornerRadius=UDim.new(0,8)
+            canc.Parent=can
+
+            local function cln() inp:Destroy() cf:Destroy() can:Destroy() end
+
+            cf.MouseButton1Click:Connect(function()
+                local nn=string.gsub(inp.Text,"^%s*(.-)%s*$","%1")
+                if nn~="" then wps[i].name=nn save() refresh() end
+                cln()
+            end)
+
+            can.MouseButton1Click:Connect(cln)
+
+            inp.FocusLost:Connect(function(ent)
+                if ent then
+                    local nn=string.gsub(inp.Text,"^%s*(.-)%s*$","%1")
+                    if nn~="" then wps[i].name=nn save() refresh() end
+                    cln()
+                end
+            end)
+        end)
+
+        delBtn.MouseButton1Click:Connect(function()
+            table.remove(wps,i)
+            save()
+            refresh()
+        end)
+
+        table.insert(wpbs,r)
+    end
+    upc()
+end
+
+load()
+refresh()
