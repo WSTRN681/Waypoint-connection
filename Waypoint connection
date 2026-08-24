@@ -1,4 +1,4 @@
--- WAYPOINT MANAGER — DATA NYATU DENGAN STRN HUB
+-- WAYPOINT MANAGER — PERSIS KAYAK STRN HUB
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -102,7 +102,7 @@ title.TextXAlignment = Enum.TextXAlignment.Left
 title.ZIndex = 110
 title.Parent = frame
 
--- TOMBOL MINIMIZE (−) → IKON TETAP DI LUAR LAYAR
+-- TOMBOL MINIMIZE (−) → MENU ILANG, DATA TETAP ADA
 local minButton = Instance.new("TextButton")
 minButton.Size = UDim2.fromOffset(32,32)
 minButton.Position = UDim2.new(1, -84, 0, 10)
@@ -122,9 +122,10 @@ minCorner.Parent = minButton
 
 minButton.MouseButton1Click:Connect(function()
     frame.Visible = false
+    -- DATA TETAP ADA DI MEMORY
 end)
 
--- TOMBOL CLOSE (✕) → DESTROY GUI
+-- TOMBOL CLOSE (✕) → MENU ILANG, DATA TETAP ADA
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.fromOffset(32,32)
 closeButton.Position = UDim2.new(1, -42, 0, 10)
@@ -143,7 +144,9 @@ closeCorner.CornerRadius = UDim.new(0, 8)
 closeCorner.Parent = closeButton
 
 closeButton.MouseButton1Click:Connect(function()
-    gui:Destroy()
+    saveData()  -- SAVE DULU
+    frame.Visible = false  -- SEMBUNYIKAN MENU
+    -- GUI TETAP ADA, DATA TETAP DI MEMORY
 end)
 
 -- ============================================================
@@ -151,6 +154,10 @@ end)
 -- ============================================================
 local function toggleWaypointManager()
     frame.Visible = not frame.Visible
+    if frame.Visible then
+        loadData()  -- LOAD ULANG DATA KALO MUNCUL
+        refreshWaypoint()
+    end
 end
 
 _G.ToggleWaypointManager = toggleWaypointManager
@@ -265,18 +272,15 @@ local wpCounter = 0
 -- SAVE & LOAD — NYATU DENGAN STRN HUB
 -- ============================================================
 local function saveData()
-    -- Ambil data STRN HUB yang sudah ada
     local success, json = pcall(function() return HttpService:GetAsync(CONFIG_KEY) end)
     local config = {}
     if success and json then
         config = HttpService:JSONDecode(json)
     end
     
-    -- Tambahkan data waypoint ke config
     config.waypoints = waypoints
     config.wpCounter = wpCounter
     
-    -- Simpan kembali
     local newJson = HttpService:JSONEncode(config)
     pcall(function() HttpService:SetAsync(CONFIG_KEY, newJson) end)
 end
