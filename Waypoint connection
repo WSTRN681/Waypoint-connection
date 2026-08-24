@@ -1,4 +1,4 @@
--- WAYPOINT MANAGER — TOMBOL STRN HUB JADI TOGGLE
+-- WAYPOINT MANAGER — DATA NYATU DENGAN STRN HUB
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -7,8 +7,10 @@ local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
 
-local PlaceId = game.PlaceId
-local CONFIG_KEY = "WaypointData_" .. PlaceId
+-- ============================================================
+-- PAKE CONFIG KEY YANG SAMA DENGAN STRN HUB
+-- ============================================================
+local CONFIG_KEY = "STRN_HUB_CONFIG"
 
 if PlayerGui:FindFirstChild("WaypointManager") then
     PlayerGui:FindFirstChild("WaypointManager"):Destroy()
@@ -151,7 +153,6 @@ local function toggleWaypointManager()
     frame.Visible = not frame.Visible
 end
 
--- EXPOSE KE GLOBAL
 _G.ToggleWaypointManager = toggleWaypointManager
 
 -- ============================================================
@@ -255,24 +256,38 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = listFrame
 
 -- ============================================================
--- DATA
+-- DATA — MENGGUNAKAN CONFIG_KEY YANG SAMA DENGAN STRN HUB
 -- ============================================================
 local waypoints = {}
 local wpCounter = 0
 
+-- ============================================================
+-- SAVE & LOAD — NYATU DENGAN STRN HUB
+-- ============================================================
 local function saveData()
-    local data = { waypoints = waypoints, counter = wpCounter }
-    local json = HttpService:JSONEncode(data)
-    pcall(function() HttpService:SetAsync(CONFIG_KEY, json) end)
+    -- Ambil data STRN HUB yang sudah ada
+    local success, json = pcall(function() return HttpService:GetAsync(CONFIG_KEY) end)
+    local config = {}
+    if success and json then
+        config = HttpService:JSONDecode(json)
+    end
+    
+    -- Tambahkan data waypoint ke config
+    config.waypoints = waypoints
+    config.wpCounter = wpCounter
+    
+    -- Simpan kembali
+    local newJson = HttpService:JSONEncode(config)
+    pcall(function() HttpService:SetAsync(CONFIG_KEY, newJson) end)
 end
 
 local function loadData()
     local success, json = pcall(function() return HttpService:GetAsync(CONFIG_KEY) end)
     if success and json then
-        local data = HttpService:JSONDecode(json)
-        if data and data.waypoints then
-            waypoints = data.waypoints
-            wpCounter = data.counter or #waypoints
+        local config = HttpService:JSONDecode(json)
+        if config and config.waypoints then
+            waypoints = config.waypoints
+            wpCounter = config.wpCounter or #waypoints
             return true
         end
     end
