@@ -1,8 +1,9 @@
--- WAYPOINT MANAGER — VERSI A (CLOSE = SEMBUNYIKAN)
+-- WAYPOINT MANAGER — SAVE 2 LAPIS + AUTO-SAVE
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
@@ -36,9 +37,7 @@ local RED = Color3.fromRGB(220,50,50)
 local GREEN = Color3.fromRGB(70,255,70)
 local YELLOW = Color3.fromRGB(255,200,50)
 
--- ============================================================
--- IKON KECIL (DI LUAR LAYAR)
--- ============================================================
+-- IKON DI LUAR LAYAR
 local iconButton = Instance.new("TextButton")
 iconButton.Size = UDim2.fromOffset(45, 45)
 iconButton.Position = UDim2.new(0, -999, 0, -999)
@@ -63,9 +62,7 @@ iconStroke.Color = Color3.fromRGB(80,80,90)
 iconStroke.Thickness = 1
 iconStroke.Parent = iconButton
 
--- ============================================================
--- FRAME WAYPOINT MANAGER
--- ============================================================
+-- FRAME UTAMA
 local frame = Instance.new("Frame")
 frame.Size = UDim2.fromOffset(menuWidth, menuHeight)
 frame.Position = UDim2.new(0, 75, 0.5, -menuHeight/2)
@@ -99,9 +96,7 @@ title.TextXAlignment = Enum.TextXAlignment.Left
 title.ZIndex = 110
 title.Parent = frame
 
--- ============================================================
--- TOMBOL MINIMIZE (−)
--- ============================================================
+-- TOMBOL MINIMIZE
 local minButton = Instance.new("TextButton")
 minButton.Size = UDim2.fromOffset(32,32)
 minButton.Position = UDim2.new(1, -84, 0, 10)
@@ -123,9 +118,7 @@ minButton.MouseButton1Click:Connect(function()
     frame.Visible = false
 end)
 
--- ============================================================
--- TOMBOL CLOSE (✕) — SEMBUNYIKAN (VERSI A)
--- ============================================================
+-- TOMBOL CLOSE
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.fromOffset(32,32)
 closeButton.Position = UDim2.new(1, -42, 0, 10)
@@ -144,14 +137,15 @@ closeCorner.CornerRadius = UDim.new(0, 8)
 closeCorner.Parent = closeButton
 
 closeButton.MouseButton1Click:Connect(function()
-    saveData()
-    frame.Visible = false  -- SEMBUNYIKAN, TIDAK DESTROY
+    forceSave()
+    frame.Visible = false
 end)
 
 -- ============================================================
--- FUNGSI TOGGLE (DIPANGGIL DARI STRN HUB)
+-- FUNGSI TOGGLE
 -- ============================================================
 local function toggleWaypointManager()
+    if not frame then return end
     frame.Visible = not frame.Visible
     if frame.Visible then
         loadData()
@@ -162,7 +156,7 @@ end
 _G.ToggleWaypointManager = toggleWaypointManager
 
 -- ============================================================
--- DRAG FRAME
+-- DRAG
 -- ============================================================
 local isDraggingMenu = false
 local dragStartPos = nil
@@ -267,7 +261,11 @@ layout.Parent = listFrame
 local waypoints = {}
 local wpCounter = 0
 
-local function saveData()
+-- ============================================================
+-- FORCE SAVE — PASTI KESIMPEN!
+-- ============================================================
+local function forceSave()
+    -- 1. SAVE KE HTTPSERVICE
     local success, json = pcall(function() return HttpService:GetAsync(CONFIG_KEY) end)
     local config = {}
     if success and json then
@@ -279,8 +277,28 @@ local function saveData()
     
     local newJson = HttpService:JSONEncode(config)
     pcall(function() HttpService:SetAsync(CONFIG_KEY, newJson) end)
+    
+    -- 2. SAVE KE CLIPBOARD (BACKUP)
+    if setclipboard then
+        local backup = HttpService:JSONEncode({
+            waypoints = waypoints,
+            wpCounter = wpCounter,
+            timestamp = os.time()
+        })
+        pcall(function() setclipboard(backup) end)
+    end
+    
+    -- 3. FEEDBACK VISUAL
+    addBtn.Text = "💾"
+    addBtn.BackgroundColor3 = GREEN
+    task.wait(0.3)
+    addBtn.Text = "➕ Add Waypoint"
+    addBtn.BackgroundColor3 = CATEGORY_SELECTED
 end
 
+-- ============================================================
+-- LOAD DATA
+-- ============================================================
 local function loadData()
     local success, json = pcall(function() return HttpService:GetAsync(CONFIG_KEY) end)
     if success and json then
@@ -293,6 +311,26 @@ local function loadData()
     end
     return false
 end
+
+-- ============================================================
+-- AUTO-SAVE TIAP 10 DETIK (PASTI AMAN!)
+-- ============================================================
+task.spawn(function()
+    while gui and gui.Parent do
+        task.wait(10)
+        if #waypoints > 0 then
+            local success, json = pcall(function() return HttpService:GetAsync(CONFIG_KEY) end)
+            local config = {}
+            if success and json then
+                config = HttpService:JSONDecode(json)
+            end
+            config.waypoints = waypoints
+            config.wpCounter = wpCounter
+            local newJson = HttpService:JSONEncode(config)
+            pcall(function() HttpService:SetAsync(CONFIG_KEY, newJson) end)
+        end
+    end
+end)
 
 -- ============================================================
 -- RENAME DIALOG
@@ -388,7 +426,7 @@ local function showRenameDialog(wp)
         local newName = input.Text:gsub("^%s*", ""):gsub("%s*$", "")
         if newName ~= "" then
             wp.n = newName
-            saveData()
+            forceSave()
             refreshWaypoint()
         end
         closeDialog()
@@ -560,7 +598,7 @@ local function refreshWaypoint()
 
         del.MouseButton1Click:Connect(function()
             table.remove(waypoints, i)
-            saveData()
+            forceSave()
             refreshWaypoint()
         end)
     end
@@ -604,7 +642,7 @@ addBtn.MouseButton1Click:Connect(function()
         Y = pos.Y,
         Z = pos.Z
     })
-    saveData()
+    forceSave()
     refreshWaypoint()
     addBtn.Text = "✅"
     addBtn.BackgroundColor3 = GREEN
