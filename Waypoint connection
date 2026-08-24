@@ -1,4 +1,4 @@
--- WAYPOINT MANAGER — IKON DI LUAR LAYAR
+-- WAYPOINT MANAGER — TOMBOL STRN HUB JADI TOGGLE
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -42,7 +42,7 @@ local YELLOW = Color3.fromRGB(255,200,50)
 -- ============================================================
 local iconButton = Instance.new("TextButton")
 iconButton.Size = UDim2.fromOffset(45, 45)
-iconButton.Position = UDim2.new(0, -999, 0, -999)  -- DI LUAR LAYAR
+iconButton.Position = UDim2.new(0, -999, 0, -999)
 iconButton.BackgroundColor3 = BG
 iconButton.BorderSizePixel = 0
 iconButton.Text = "📍"
@@ -65,7 +65,7 @@ iconStroke.Thickness = 1
 iconStroke.Parent = iconButton
 
 -- ============================================================
--- FRAME WAYPOINT MANAGER (POSISI SAMA KAYAK STRN HUB)
+-- FRAME WAYPOINT MANAGER — LANGSUNG MUNCUL
 -- ============================================================
 local frame = Instance.new("Frame")
 frame.Size = UDim2.fromOffset(menuWidth, menuHeight)
@@ -75,7 +75,7 @@ frame.BackgroundTransparency = 0
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.ZIndex = 100
-frame.Visible = false  -- AWALNYA HIDDEN
+frame.Visible = true
 frame.Parent = gui
 
 local frameCorner = Instance.new("UICorner")
@@ -120,7 +120,6 @@ minCorner.Parent = minButton
 
 minButton.MouseButton1Click:Connect(function()
     frame.Visible = false
-    -- IKON TETAP DI LUAR LAYAR (GAK KELIATAN)
 end)
 
 -- TOMBOL CLOSE (✕) → DESTROY GUI
@@ -150,12 +149,9 @@ end)
 -- ============================================================
 local function toggleWaypointManager()
     frame.Visible = not frame.Visible
-    -- IKON TETAP DI LUAR LAYAR, GA PENGARUH
 end
 
--- ============================================================
--- EXPOSE KE GLOBAL BIAR BISA DIPANGGIL DARI STRN HUB
--- ============================================================
+-- EXPOSE KE GLOBAL
 _G.ToggleWaypointManager = toggleWaypointManager
 
 -- ============================================================
