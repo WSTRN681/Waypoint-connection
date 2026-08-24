@@ -1,4 +1,4 @@
--- WAYPOINT MANAGER — PERSIS KAYAK STRN HUB
+-- WAYPOINT MANAGER — VERSI A (CLOSE = SEMBUNYIKAN)
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -7,9 +7,6 @@ local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
 
--- ============================================================
--- PAKE CONFIG KEY YANG SAMA DENGAN STRN HUB
--- ============================================================
 local CONFIG_KEY = "STRN_HUB_CONFIG"
 
 if PlayerGui:FindFirstChild("WaypointManager") then
@@ -40,7 +37,7 @@ local GREEN = Color3.fromRGB(70,255,70)
 local YELLOW = Color3.fromRGB(255,200,50)
 
 -- ============================================================
--- IKON KECIL (DI LUAR LAYAR — GA KELIATAN)
+-- IKON KECIL (DI LUAR LAYAR)
 -- ============================================================
 local iconButton = Instance.new("TextButton")
 iconButton.Size = UDim2.fromOffset(45, 45)
@@ -67,7 +64,7 @@ iconStroke.Thickness = 1
 iconStroke.Parent = iconButton
 
 -- ============================================================
--- FRAME WAYPOINT MANAGER — LANGSUNG MUNCUL
+-- FRAME WAYPOINT MANAGER
 -- ============================================================
 local frame = Instance.new("Frame")
 frame.Size = UDim2.fromOffset(menuWidth, menuHeight)
@@ -102,7 +99,9 @@ title.TextXAlignment = Enum.TextXAlignment.Left
 title.ZIndex = 110
 title.Parent = frame
 
--- TOMBOL MINIMIZE (−) → MENU ILANG, DATA TETAP ADA
+-- ============================================================
+-- TOMBOL MINIMIZE (−)
+-- ============================================================
 local minButton = Instance.new("TextButton")
 minButton.Size = UDim2.fromOffset(32,32)
 minButton.Position = UDim2.new(1, -84, 0, 10)
@@ -122,10 +121,11 @@ minCorner.Parent = minButton
 
 minButton.MouseButton1Click:Connect(function()
     frame.Visible = false
-    -- DATA TETAP ADA DI MEMORY
 end)
 
--- TOMBOL CLOSE (✕) → MENU ILANG, DATA TETAP ADA
+-- ============================================================
+-- TOMBOL CLOSE (✕) — SEMBUNYIKAN (VERSI A)
+-- ============================================================
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.fromOffset(32,32)
 closeButton.Position = UDim2.new(1, -42, 0, 10)
@@ -144,9 +144,8 @@ closeCorner.CornerRadius = UDim.new(0, 8)
 closeCorner.Parent = closeButton
 
 closeButton.MouseButton1Click:Connect(function()
-    saveData()  -- SAVE DULU
-    frame.Visible = false  -- SEMBUNYIKAN MENU
-    -- GUI TETAP ADA, DATA TETAP DI MEMORY
+    saveData()
+    frame.Visible = false  -- SEMBUNYIKAN, TIDAK DESTROY
 end)
 
 -- ============================================================
@@ -155,7 +154,7 @@ end)
 local function toggleWaypointManager()
     frame.Visible = not frame.Visible
     if frame.Visible then
-        loadData()  -- LOAD ULANG DATA KALO MUNCUL
+        loadData()
         refreshWaypoint()
     end
 end
@@ -263,14 +262,11 @@ layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = listFrame
 
 -- ============================================================
--- DATA — MENGGUNAKAN CONFIG_KEY YANG SAMA DENGAN STRN HUB
+-- DATA
 -- ============================================================
 local waypoints = {}
 local wpCounter = 0
 
--- ============================================================
--- SAVE & LOAD — NYATU DENGAN STRN HUB
--- ============================================================
 local function saveData()
     local success, json = pcall(function() return HttpService:GetAsync(CONFIG_KEY) end)
     local config = {}
