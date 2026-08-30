@@ -1,77 +1,86 @@
--- WAYPOINT MANAGER — SAVE 2 LAPIS + AUTO-SAVE
+-- ============================================================
+-- STRN Bypass — WAYPOINT, TRANSLATOR, INTERACT & CLONE AVATAR
+-- ============================================================
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
-local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
-local Camera = workspace.CurrentCamera
+local Camera = Workspace.CurrentCamera
 
-local CONFIG_KEY = "STRN_HUB_CONFIG"
+local function getCharacter() return Player.Character or Player.CharacterAdded:Wait() end
+local function getRoot(c) c = c or getCharacter() return c:FindFirstChild("HumanoidRootPart") end
 
-if PlayerGui:FindFirstChild("WaypointManager") then
-    PlayerGui:FindFirstChild("WaypointManager"):Destroy()
+-- PALET WARNA KHAS STRN
+local BG = Color3.fromRGB(20, 20, 25)
+local BUTTON = Color3.fromRGB(35, 35, 43)
+local BUTTON_HOVER = Color3.fromRGB(50, 50, 60)
+local ON_COLOR = Color3.fromRGB(70, 180, 255)
+local TEXT = Color3.fromRGB(235, 235, 240)
+local SUBTEXT = Color3.fromRGB(150, 150, 160)
+local RED = Color3.fromRGB(220, 50, 50)
+local GREEN = Color3.fromRGB(70, 255, 70)
+
+-- STORAGE FILE (PER-GAME VIA PLACEID)
+local PlaceId = game.PlaceId
+local WAYPOINT_FILE = "STRN_Waypoint_" .. tostring(PlaceId) .. ".json"
+local waypoints = {}
+
+local function saveWaypoints()
+    local success, json = pcall(function() return HttpService:JSONEncode(waypoints) end)
+    if success and json and writefile then
+        pcall(function() writefile(WAYPOINT_FILE, json) end)
+    end
 end
 
+local function loadWaypoints()
+    if isfile and not isfile(WAYPOINT_FILE) then return end
+    if readfile then
+        local success, fileData = pcall(function() return readfile(WAYPOINT_FILE) end)
+        if success and fileData and fileData ~= "" then
+            local decodeSuccess, decoded = pcall(function() return HttpService:JSONDecode(fileData) end)
+            if decodeSuccess and type(decoded) == "table" then
+                waypoints = decoded
+            end
+        end
+    end
+end
+
+loadWaypoints()
+
+-- CLEANUP OLD GUI
+local oldGui = PlayerGui:FindFirstChild("STRN Bypass")
+if oldGui then oldGui:Destroy() end
+
+-- GUI CONTAINER (TOP LAYER)
 local gui = Instance.new("ScreenGui")
-gui.Name = "WaypointManager"
+gui.Name = "STRN Bypass"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-gui.DisplayOrder = 999999
+gui.DisplayOrder = 1000000
 gui.Parent = PlayerGui
 
+-- UKURAN PERSIS SAMA DENGAN STRN HUB V2
 local viewport = Camera.ViewportSize
 local menuWidth = math.clamp(viewport.X * 0.82, 270, 330)
 local menuHeight = math.clamp(viewport.Y * 0.62, 360, 430)
 
-local BG = Color3.fromRGB(20,20,25)
-local BUTTON = Color3.fromRGB(35,35,43)
-local BUTTON_HOVER = Color3.fromRGB(50,50,60)
-local CATEGORY_SELECTED = Color3.fromRGB(35,125,255)
-local ON_COLOR = Color3.fromRGB(70,180,255)
-local TEXT = Color3.fromRGB(235,235,240)
-local SUBTEXT = Color3.fromRGB(150,150,160)
-local RED = Color3.fromRGB(220,50,50)
-local GREEN = Color3.fromRGB(70,255,70)
-local YELLOW = Color3.fromRGB(255,200,50)
+local hubXPos = 75
+local hubYPos = viewport.Y * 0.5 - (menuHeight / 2)
 
--- IKON DI LUAR LAYAR
-local iconButton = Instance.new("TextButton")
-iconButton.Size = UDim2.fromOffset(45, 45)
-iconButton.Position = UDim2.new(0, -999, 0, -999)
-iconButton.BackgroundColor3 = BG
-iconButton.BorderSizePixel = 0
-iconButton.Text = "📍"
-iconButton.TextColor3 = TEXT
-iconButton.TextSize = 18
-iconButton.Font = Enum.Font.GothamBold
-iconButton.AutoButtonColor = false
-iconButton.Visible = true
-iconButton.Active = true
-iconButton.ZIndex = 1000
-iconButton.Parent = gui
-
-local iconCorner = Instance.new("UICorner")
-iconCorner.CornerRadius = UDim.new(1, 0)
-iconCorner.Parent = iconButton
-
-local iconStroke = Instance.new("UIStroke")
-iconStroke.Color = Color3.fromRGB(80,80,90)
-iconStroke.Thickness = 1
-iconStroke.Parent = iconButton
-
--- FRAME UTAMA
+-- MAIN FRAME (MENUTUPI STRN HUB)
 local frame = Instance.new("Frame")
+frame.Name = "Main"
 frame.Size = UDim2.fromOffset(menuWidth, menuHeight)
-frame.Position = UDim2.new(0, 75, 0.5, -menuHeight/2)
+frame.Position = UDim2.new(0, hubXPos, 0, hubYPos)
 frame.BackgroundColor3 = BG
-frame.BackgroundTransparency = 0
 frame.BorderSizePixel = 0
 frame.Active = true
-frame.ZIndex = 100
-frame.Visible = true
+frame.ZIndex = 500
 frame.Parent = gui
 
 local frameCorner = Instance.new("UICorner")
@@ -79,48 +88,44 @@ frameCorner.CornerRadius = UDim.new(0, 15)
 frameCorner.Parent = frame
 
 local frameStroke = Instance.new("UIStroke")
-frameStroke.Color = Color3.fromRGB(80,80,90)
+frameStroke.Color = Color3.fromRGB(80, 80, 90)
 frameStroke.Thickness = 1
 frameStroke.Parent = frame
 
--- TITLE
+-- HEADER ("Manager")
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -100, 0, 42)
+title.Size = UDim2.new(1, -90, 0, 42)
 title.Position = UDim2.fromOffset(14, 5)
 title.BackgroundTransparency = 1
-title.Text = "📍 Waypoint Manager"
+title.Text = "📍 Manager"
 title.TextColor3 = TEXT
-title.TextSize = 22
+title.TextSize = 18
 title.Font = Enum.Font.GothamBold
 title.TextXAlignment = Enum.TextXAlignment.Left
-title.ZIndex = 110
+title.ZIndex = 510
 title.Parent = frame
 
--- TOMBOL MINIMIZE
-local minButton = Instance.new("TextButton")
-minButton.Size = UDim2.fromOffset(32,32)
-minButton.Position = UDim2.new(1, -84, 0, 10)
-minButton.BackgroundColor3 = BUTTON
-minButton.BorderSizePixel = 0
-minButton.Text = "−"
-minButton.TextColor3 = TEXT
-minButton.TextSize = 20
-minButton.Font = Enum.Font.GothamBold
-minButton.AutoButtonColor = false
-minButton.ZIndex = 120
-minButton.Parent = frame
+-- TOMBOL MINIMIZE / DRAG (−)
+local dragButton = Instance.new("TextButton")
+dragButton.Size = UDim2.fromOffset(32, 32)
+dragButton.Position = UDim2.new(1, -84, 0, 10)
+dragButton.BackgroundColor3 = BUTTON
+dragButton.BorderSizePixel = 0
+dragButton.Text = "−"
+dragButton.TextColor3 = TEXT
+dragButton.TextSize = 20
+dragButton.Font = Enum.Font.GothamBold
+dragButton.AutoButtonColor = false
+dragButton.ZIndex = 520
+dragButton.Parent = frame
 
-local minCorner = Instance.new("UICorner")
-minCorner.CornerRadius = UDim.new(0, 8)
-minCorner.Parent = minButton
+local dragCorner = Instance.new("UICorner")
+dragCorner.CornerRadius = UDim.new(0, 8)
+dragCorner.Parent = dragButton
 
-minButton.MouseButton1Click:Connect(function()
-    frame.Visible = false
-end)
-
--- TOMBOL CLOSE
+-- TOMBOL CLOSE (✕)
 local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.fromOffset(32,32)
+closeButton.Size = UDim2.fromOffset(32, 32)
 closeButton.Position = UDim2.new(1, -42, 0, 10)
 closeButton.BackgroundColor3 = BUTTON
 closeButton.BorderSizePixel = 0
@@ -129,7 +134,7 @@ closeButton.TextColor3 = TEXT
 closeButton.TextSize = 16
 closeButton.Font = Enum.Font.GothamBold
 closeButton.AutoButtonColor = false
-closeButton.ZIndex = 120
+closeButton.ZIndex = 520
 closeButton.Parent = frame
 
 local closeCorner = Instance.new("UICorner")
@@ -137,33 +142,1021 @@ closeCorner.CornerRadius = UDim.new(0, 8)
 closeCorner.Parent = closeButton
 
 closeButton.MouseButton1Click:Connect(function()
-    forceSave()
-    frame.Visible = false
+    gui:Destroy()
+end)
+
+-- TAB SELECTOR BUTTONS
+local tabHolder = Instance.new("Frame")
+tabHolder.Size = UDim2.new(1, -20, 0, 32)
+tabHolder.Position = UDim2.fromOffset(10, 48)
+tabHolder.BackgroundTransparency = 1
+tabHolder.ZIndex = 505
+tabHolder.Parent = frame
+
+local waypointTabBtn = Instance.new("TextButton")
+waypointTabBtn.Size = UDim2.new(0.24, 0, 1, 0)
+waypointTabBtn.Position = UDim2.fromOffset(0, 0)
+waypointTabBtn.BackgroundColor3 = ON_COLOR
+waypointTabBtn.BorderSizePixel = 0
+waypointTabBtn.Text = "📍 Waypoint"
+waypointTabBtn.TextColor3 = TEXT
+waypointTabBtn.TextSize = 9
+waypointTabBtn.Font = Enum.Font.GothamBold
+waypointTabBtn.ZIndex = 506
+waypointTabBtn.Parent = tabHolder
+
+local wayTabCorner = Instance.new("UICorner")
+wayTabCorner.CornerRadius = UDim.new(0, 6)
+wayTabCorner.Parent = waypointTabBtn
+
+local transTabBtn = Instance.new("TextButton")
+transTabBtn.Size = UDim2.new(0.24, 0, 1, 0)
+transTabBtn.Position = UDim2.new(0.25, 0, 0, 0)
+transTabBtn.BackgroundColor3 = BUTTON
+transTabBtn.BorderSizePixel = 0
+transTabBtn.Text = "🌐 Translate"
+transTabBtn.TextColor3 = TEXT
+transTabBtn.TextSize = 9
+transTabBtn.Font = Enum.Font.GothamBold
+transTabBtn.ZIndex = 506
+transTabBtn.Parent = tabHolder
+
+local transTabCorner = Instance.new("UICorner")
+transTabCorner.CornerRadius = UDim.new(0, 6)
+transTabCorner.Parent = transTabBtn
+
+local fastTabBtn = Instance.new("TextButton")
+fastTabBtn.Size = UDim2.new(0.24, 0, 1, 0)
+fastTabBtn.Position = UDim2.new(0.50, 0, 0, 0)
+fastTabBtn.BackgroundColor3 = BUTTON
+fastTabBtn.BorderSizePixel = 0
+fastTabBtn.Text = "⚡ Interact"
+fastTabBtn.TextColor3 = TEXT
+fastTabBtn.TextSize = 9
+fastTabBtn.Font = Enum.Font.GothamBold
+fastTabBtn.ZIndex = 506
+fastTabBtn.Parent = fastTabBtn.Parent
+
+local fastTabCorner = Instance.new("UICorner")
+fastTabCorner.CornerRadius = UDim.new(0, 6)
+fastTabCorner.Parent = fastTabBtn
+
+local cloneTabBtn = Instance.new("TextButton")
+cloneTabBtn.Size = UDim2.new(0.24, 0, 1, 0)
+cloneTabBtn.Position = UDim2.new(0.75, 0, 0, 0)
+cloneTabBtn.BackgroundColor3 = BUTTON
+cloneTabBtn.BorderSizePixel = 0
+cloneTabBtn.Text = "👤 Clone"
+cloneTabBtn.TextColor3 = TEXT
+cloneTabBtn.TextSize = 9
+cloneTabBtn.Font = Enum.Font.GothamBold
+cloneTabBtn.ZIndex = 506
+cloneTabBtn.Parent = tabHolder
+
+local cloneTabCorner = Instance.new("UICorner")
+cloneTabCorner.CornerRadius = UDim.new(0, 6)
+cloneTabCorner.Parent = cloneTabBtn
+
+-- SCROLLING PAGES
+local waypointPage = Instance.new("ScrollingFrame")
+waypointPage.Size = UDim2.new(1, -20, 1, -92)
+waypointPage.Position = UDim2.fromOffset(10, 85)
+waypointPage.BackgroundTransparency = 1
+waypointPage.BorderSizePixel = 0
+waypointPage.ScrollBarThickness = 5
+waypointPage.ScrollBarImageTransparency = 0.2
+waypointPage.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 110)
+waypointPage.ScrollingDirection = Enum.ScrollingDirection.Y
+waypointPage.Active = true
+waypointPage.ZIndex = 505
+waypointPage.Parent = frame
+
+local transPage = Instance.new("ScrollingFrame")
+transPage.Size = UDim2.new(1, -20, 1, -92)
+transPage.Position = UDim2.fromOffset(10, 85)
+transPage.BackgroundTransparency = 1
+transPage.BorderSizePixel = 0
+transPage.ScrollBarThickness = 5
+transPage.ScrollBarImageTransparency = 0.2
+transPage.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 110)
+transPage.ScrollingDirection = Enum.ScrollingDirection.Y
+transPage.Active = true
+transPage.Visible = false
+transPage.ZIndex = 505
+transPage.Parent = frame
+
+local fastPage = Instance.new("ScrollingFrame")
+fastPage.Size = UDim2.new(1, -20, 1, -92)
+fastPage.Position = UDim2.fromOffset(10, 85)
+fastPage.BackgroundTransparency = 1
+fastPage.BorderSizePixel = 0
+fastPage.ScrollBarThickness = 5
+fastPage.ScrollBarImageTransparency = 0.2
+fastPage.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 110)
+fastPage.ScrollingDirection = Enum.ScrollingDirection.Y
+fastPage.Active = true
+fastPage.Visible = false
+fastPage.ZIndex = 505
+fastPage.Parent = frame
+
+local clonePage = Instance.new("ScrollingFrame")
+clonePage.Size = UDim2.new(1, -20, 1, -92)
+clonePage.Position = UDim2.fromOffset(10, 85)
+clonePage.BackgroundTransparency = 1
+clonePage.BorderSizePixel = 0
+clonePage.ScrollBarThickness = 5
+clonePage.ScrollBarImageTransparency = 0.2
+clonePage.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 110)
+clonePage.ScrollingDirection = Enum.ScrollingDirection.Y
+clonePage.Active = true
+clonePage.Visible = false
+clonePage.ZIndex = 505
+clonePage.Parent = frame
+
+local function switchTab(tabIndex)
+    waypointPage.Visible = (tabIndex == 1)
+    transPage.Visible = (tabIndex == 2)
+    fastPage.Visible = (tabIndex == 3)
+    clonePage.Visible = (tabIndex == 4)
+
+    waypointTabBtn.BackgroundColor3 = (tabIndex == 1) and ON_COLOR or BUTTON
+    transTabBtn.BackgroundColor3 = (tabIndex == 2) and ON_COLOR or BUTTON
+    fastTabBtn.BackgroundColor3 = (tabIndex == 3) and ON_COLOR or BUTTON
+    cloneTabBtn.BackgroundColor3 = (tabIndex == 4) and ON_COLOR or BUTTON
+end
+
+waypointTabBtn.MouseButton1Click:Connect(function() switchTab(1) end)
+transTabBtn.MouseButton1Click:Connect(function() switchTab(2) end)
+fastTabBtn.MouseButton1Click:Connect(function() switchTab(3) end)
+cloneTabBtn.MouseButton1Click:Connect(function() switchTab(4) end)
+
+-- ============================================================
+-- WAYPOINT PAGE CONTENT
+-- ============================================================
+local nameInput = Instance.new("TextBox")
+nameInput.Size = UDim2.new(1, -10, 0, 38)
+nameInput.Position = UDim2.fromOffset(5, 5)
+nameInput.BackgroundColor3 = BUTTON
+nameInput.BorderSizePixel = 0
+nameInput.Text = ""
+nameInput.PlaceholderText = "Ketik nama lokasi..."
+nameInput.PlaceholderColor3 = SUBTEXT
+nameInput.TextColor3 = TEXT
+nameInput.TextSize = 12
+nameInput.Font = Enum.Font.GothamMedium
+nameInput.ClearTextOnFocus = true
+nameInput.ZIndex = 515
+nameInput.Parent = waypointPage
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 8)
+inputCorner.Parent = nameInput
+
+local saveBtn = Instance.new("TextButton")
+saveBtn.Size = UDim2.new(1, -10, 0, 42)
+saveBtn.Position = UDim2.fromOffset(5, 50)
+saveBtn.BackgroundColor3 = ON_COLOR
+saveBtn.BorderSizePixel = 0
+saveBtn.Text = "➕ Add Waypoint"
+saveBtn.TextColor3 = TEXT
+saveBtn.TextSize = 13
+saveBtn.Font = Enum.Font.GothamBold
+saveBtn.AutoButtonColor = false
+saveBtn.ZIndex = 515
+saveBtn.Parent = waypointPage
+
+local saveCorner = Instance.new("UICorner")
+saveCorner.CornerRadius = UDim.new(0, 8)
+saveCorner.Parent = saveBtn
+
+local wayList = Instance.new("Frame")
+wayList.Name = "WaypointList"
+wayList.Position = UDim2.fromOffset(5, 100)
+wayList.Size = UDim2.new(1, -10, 0, 0)
+wayList.BackgroundTransparency = 1
+wayList.ZIndex = 515
+wayList.Parent = waypointPage
+
+local wayLayout = Instance.new("UIListLayout")
+wayLayout.Padding = UDim.new(0, 6)
+wayLayout.SortOrder = Enum.SortOrder.Name
+wayLayout.Parent = wayList
+
+local emptyLabel = Instance.new("TextLabel")
+emptyLabel.Size = UDim2.new(1, 0, 0, 40)
+emptyLabel.Position = UDim2.fromOffset(0, 0)
+emptyLabel.BackgroundTransparency = 1
+emptyLabel.Text = "❗️ Belum ada waypoint."
+emptyLabel.TextColor3 = RED
+emptyLabel.TextSize = 12
+emptyLabel.Font = Enum.Font.GothamBold
+emptyLabel.Visible = false
+emptyLabel.ZIndex = 516
+emptyLabel.Parent = wayList
+
+local function refreshWaypointList()
+    for _, child in ipairs(wayList:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+
+    local count = 0
+    for name, pos in pairs(waypoints) do
+        count = count + 1
+        local row = Instance.new("Frame")
+        row.Name = name
+        row.Size = UDim2.new(1, 0, 0, 45)
+        row.BackgroundColor3 = BUTTON
+        row.BorderSizePixel = 0
+        row.ZIndex = 516
+        row.Parent = wayList
+
+        local rowCorner = Instance.new("UICorner")
+        rowCorner.CornerRadius = UDim.new(0, 8)
+        rowCorner.Parent = row
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -140, 1, 0)
+        label.Position = UDim2.fromOffset(10, 0)
+        label.BackgroundTransparency = 1
+        label.Text = "📍 " .. name
+        label.TextColor3 = TEXT
+        label.TextSize = 12
+        label.Font = Enum.Font.GothamBold
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.TextTruncate = Enum.TextTruncate.AtEnd
+        label.ZIndex = 517
+        label.Parent = row
+
+        local tpBtn = Instance.new("TextButton")
+        tpBtn.Size = UDim2.fromOffset(40, 30)
+        tpBtn.Position = UDim2.new(1, -125, 0.5, -15)
+        tpBtn.BackgroundColor3 = ON_COLOR
+        tpBtn.BorderSizePixel = 0
+        tpBtn.Text = "TP"
+        tpBtn.TextColor3 = TEXT
+        tpBtn.TextSize = 11
+        tpBtn.Font = Enum.Font.GothamBold
+        tpBtn.ZIndex = 518
+        tpBtn.Parent = row
+
+        local tpCorner = Instance.new("UICorner")
+        tpCorner.CornerRadius = UDim.new(0, 6)
+        tpCorner.Parent = tpBtn
+
+        local editBtn = Instance.new("TextButton")
+        editBtn.Size = UDim2.fromOffset(35, 30)
+        editBtn.Position = UDim2.new(1, -80, 0.5, -15)
+        editBtn.BackgroundColor3 = BUTTON_HOVER
+        editBtn.BorderSizePixel = 0
+        editBtn.Text = "✏️"
+        editBtn.TextColor3 = TEXT
+        editBtn.TextSize = 11
+        editBtn.Font = Enum.Font.GothamBold
+        editBtn.ZIndex = 518
+        editBtn.Parent = row
+
+        local editCorner = Instance.new("UICorner")
+        editCorner.CornerRadius = UDim.new(0, 6)
+        editCorner.Parent = editBtn
+
+        local delBtn = Instance.new("TextButton")
+        delBtn.Size = UDim2.fromOffset(35, 30)
+        delBtn.Position = UDim2.new(1, -40, 0.5, -15)
+        delBtn.BackgroundColor3 = RED
+        delBtn.BorderSizePixel = 0
+        delBtn.Text = "🗑️"
+        delBtn.TextColor3 = TEXT
+        delBtn.TextSize = 11
+        delBtn.Font = Enum.Font.GothamBold
+        delBtn.ZIndex = 518
+        delBtn.Parent = row
+
+        local delCorner = Instance.new("UICorner")
+        delCorner.CornerRadius = UDim.new(0, 6)
+        delCorner.Parent = delBtn
+
+        tpBtn.MouseButton1Click:Connect(function()
+            local root = getRoot()
+            if root and pos then
+                root.CFrame = CFrame.new(pos.X, pos.Y, pos.Z)
+            end
+        end)
+
+        editBtn.MouseButton1Click:Connect(function()
+            if row:FindFirstChild("RenameInput") then return end
+
+            local renameInput = Instance.new("TextBox")
+            renameInput.Name = "RenameInput"
+            renameInput.Size = UDim2.new(1, -135, 0, 30)
+            renameInput.Position = UDim2.fromOffset(8, 7)
+            renameInput.BackgroundColor3 = BG
+            renameInput.BorderSizePixel = 0
+            renameInput.Text = name
+            renameInput.TextColor3 = TEXT
+            renameInput.TextSize = 12
+            renameInput.Font = Enum.Font.GothamBold
+            renameInput.ZIndex = 525
+            renameInput.Parent = row
+
+            local rCorner = Instance.new("UICorner")
+            rCorner.CornerRadius = UDim.new(0, 6)
+            rCorner.Parent = renameInput
+
+            label.Visible = false
+
+            renameInput.FocusLost:Connect(function(enterPressed)
+                local newName = renameInput.Text:gsub("^%s*(.-)%s*$", "%1")
+                if newName ~= "" and newName ~= name then
+                    waypoints[newName] = waypoints[name]
+                    waypoints[name] = nil
+                    saveWaypoints()
+                end
+                refreshWaypointList()
+            end)
+            renameInput:CaptureFocus()
+        end)
+
+        delBtn.MouseButton1Click:Connect(function()
+            waypoints[name] = nil
+            saveWaypoints()
+            refreshWaypointList()
+        end)
+    end
+
+    if count == 0 then
+        emptyLabel.Visible = true
+    else
+        emptyLabel.Visible = false
+    end
+
+    task.wait()
+    local contentHeight = math.max(wayLayout.AbsoluteContentSize.Y, 50)
+    wayList.Size = UDim2.new(1, -10, 0, contentHeight)
+    waypointPage.CanvasSize = UDim2.new(0, 0, 0, 110 + contentHeight)
+end
+
+saveBtn.MouseButton1Click:Connect(function()
+    local root = getRoot()
+    if not root then return end
+
+    local inputName = nameInput.Text
+    if not inputName or inputName:gsub("%s+", "") == "" then
+        local count = 0
+        for _ in pairs(waypoints) do count = count + 1 end
+        inputName = "Posisi_" .. tostring(count + 1)
+    end
+
+    waypoints[inputName] = {
+        X = root.CFrame.X,
+        Y = root.CFrame.Y,
+        Z = root.CFrame.Z
+    }
+
+    nameInput.Text = ""
+    saveWaypoints()
+    refreshWaypointList()
 end)
 
 -- ============================================================
--- FUNGSI TOGGLE
+-- TRANSLATOR PAGE CONTENT (GOOGLE TRANSLATE WIDGET)
 -- ============================================================
-local function toggleWaypointManager()
-    if not frame then return end
-    frame.Visible = not frame.Visible
-    if frame.Visible then
-        loadData()
-        refreshWaypoint()
+local languages = {
+    { Name = "Indonesian", Code = "id" },
+    { Name = "English", Code = "en" },
+    { Name = "Japanese", Code = "ja" },
+    { Name = "Spanish", Code = "es" },
+    { Name = "Arabic", Code = "ar" },
+    { Name = "Tagalog", Code = "tl" },
+    { Name = "German", Code = "de" },
+    { Name = "French", Code = "fr" },
+    { Name = "Russian", Code = "ru" },
+    { Name = "Chinese", Code = "zh-CN" },
+    { Name = "Korean", Code = "ko" }
+}
+
+local srcLangIdx = 1
+local tgtLangIdx = 2
+
+local transInput = Instance.new("TextBox")
+transInput.Size = UDim2.new(1, -10, 0, 70)
+transInput.Position = UDim2.fromOffset(5, 5)
+transInput.BackgroundColor3 = BUTTON
+transInput.BorderSizePixel = 0
+transInput.Text = ""
+transInput.PlaceholderText = "Ketik teks yang ingin diterjemahkan..."
+transInput.PlaceholderColor3 = SUBTEXT
+transInput.TextColor3 = TEXT
+transInput.TextSize = 12
+transInput.Font = Enum.Font.GothamMedium
+transInput.TextYAlignment = Enum.TextYAlignment.Top
+transInput.TextXAlignment = Enum.TextXAlignment.Left
+transInput.ClearTextOnFocus = false
+transInput.MultiLine = true
+transInput.TextWrapped = true
+transInput.ZIndex = 515
+transInput.Parent = transPage
+
+local transInCorner = Instance.new("UICorner")
+transInCorner.CornerRadius = UDim.new(0, 8)
+transInCorner.Parent = transInput
+
+local inPadding = Instance.new("UIPadding")
+inPadding.PaddingLeft = UDim.new(0, 8)
+inPadding.PaddingTop = UDim.new(0, 8)
+inPadding.Parent = transInput
+
+local langControl = Instance.new("Frame")
+langControl.Size = UDim2.new(1, -10, 0, 35)
+langControl.Position = UDim2.fromOffset(5, 82)
+langControl.BackgroundTransparency = 1
+langControl.ZIndex = 515
+langControl.Parent = transPage
+
+local srcLangBtn = Instance.new("TextButton")
+srcLangBtn.Size = UDim2.new(0.42, 0, 1, 0)
+srcLangBtn.BackgroundColor3 = BUTTON
+srcLangBtn.BorderSizePixel = 0
+srcLangBtn.Text = languages[srcLangIdx].Name .. " ▼"
+srcLangBtn.TextColor3 = TEXT
+srcLangBtn.TextSize = 11
+srcLangBtn.Font = Enum.Font.GothamBold
+srcLangBtn.ZIndex = 516
+srcLangBtn.Parent = langControl
+
+local srcCorner = Instance.new("UICorner")
+srcCorner.CornerRadius = UDim.new(0, 6)
+srcCorner.Parent = srcLangBtn
+
+local swapBtn = Instance.new("TextButton")
+swapBtn.Size = UDim2.new(0.14, -4, 1, 0)
+swapBtn.Position = UDim2.new(0.42, 2, 0, 0)
+swapBtn.BackgroundColor3 = BUTTON_HOVER
+swapBtn.BorderSizePixel = 0
+swapBtn.Text = "⇄"
+swapBtn.TextColor3 = TEXT
+swapBtn.TextSize = 14
+swapBtn.Font = Enum.Font.GothamBold
+swapBtn.ZIndex = 516
+swapBtn.Parent = langControl
+
+local swapCorner = Instance.new("UICorner")
+swapCorner.CornerRadius = UDim.new(0, 6)
+swapCorner.Parent = swapBtn
+
+local tgtLangBtn = Instance.new("TextButton")
+tgtLangBtn.Size = UDim2.new(0.42, 0, 1, 0)
+tgtLangBtn.Position = UDim2.new(0.58, 0, 0, 0)
+tgtLangBtn.BackgroundColor3 = BUTTON
+tgtLangBtn.BorderSizePixel = 0
+tgtLangBtn.Text = languages[tgtLangIdx].Name .. " ▼"
+tgtLangBtn.TextColor3 = TEXT
+tgtLangBtn.TextSize = 11
+tgtLangBtn.Font = Enum.Font.GothamBold
+tgtLangBtn.ZIndex = 516
+tgtLangBtn.Parent = langControl
+
+local tgtCorner = Instance.new("UICorner")
+tgtCorner.CornerRadius = UDim.new(0, 6)
+tgtCorner.Parent = tgtLangBtn
+
+local langDropdownFrame = Instance.new("Frame")
+langDropdownFrame.Name = "LangDropdown"
+langDropdownFrame.Size = UDim2.new(1, -10, 0, 120)
+langDropdownFrame.Position = UDim2.fromOffset(5, 120)
+langDropdownFrame.BackgroundColor3 = BG
+langDropdownFrame.BorderSizePixel = 0
+langDropdownFrame.ZIndex = 600
+langDropdownFrame.Visible = false
+langDropdownFrame.Parent = transPage
+
+local dropStroke = Instance.new("UIStroke")
+dropStroke.Color = Color3.fromRGB(80, 80, 90)
+dropStroke.Thickness = 1
+dropStroke.Parent = langDropdownFrame
+
+local dropCorner = Instance.new("UICorner")
+dropCorner.CornerRadius = UDim.new(0, 8)
+dropCorner.Parent = langDropdownFrame
+
+local dropdownScroll = Instance.new("ScrollingFrame")
+dropdownScroll.Size = UDim2.new(1, 0, 1, 0)
+dropdownScroll.BackgroundTransparency = 1
+dropdownScroll.BorderSizePixel = 0
+dropdownScroll.ScrollBarThickness = 4
+dropdownScroll.ZIndex = 601
+dropdownScroll.Active = true
+dropdownScroll.Parent = langDropdownFrame
+
+local dropdownLayout = Instance.new("UIListLayout")
+dropdownLayout.Padding = UDim.new(0, 2)
+dropdownLayout.Parent = dropdownScroll
+
+local activeTargetMode = "src"
+
+local function openDropdown(mode)
+    activeTargetMode = mode
+    for _, child in ipairs(dropdownScroll:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+
+    for idx, lang in ipairs(languages) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, -8, 0, 28)
+        btn.BackgroundColor3 = BUTTON_HOVER
+        btn.BorderSizePixel = 0
+        btn.Text = lang.Name
+        btn.TextColor3 = TEXT
+        btn.TextSize = 11
+        btn.Font = Enum.Font.GothamMedium
+        btn.ZIndex = 602
+        btn.Parent = dropdownScroll
+
+        local bCorner = Instance.new("UICorner")
+        bCorner.CornerRadius = UDim.new(0, 5)
+        bCorner.Parent = btn
+
+        btn.MouseButton1Click:Connect(function()
+            if activeTargetMode == "src" then
+                srcLangIdx = idx
+                srcLangBtn.Text = languages[srcLangIdx].Name .. " ▼"
+            else
+                tgtLangIdx = idx
+                tgtLangBtn.Text = languages[tgtLangIdx].Name .. " ▼"
+            end
+            langDropdownFrame.Visible = false
+        end)
+    end
+
+    dropdownScroll.CanvasSize = UDim2.new(0, 0, 0, #languages * 30)
+    langDropdownFrame.Visible = true
+end
+
+srcLangBtn.MouseButton1Click:Connect(function()
+    if langDropdownFrame.Visible and activeTargetMode == "src" then
+        langDropdownFrame.Visible = false
+    else
+        openDropdown("src")
+    end
+end)
+
+tgtLangBtn.MouseButton1Click:Connect(function()
+    if langDropdownFrame.Visible and activeTargetMode == "tgt" then
+        langDropdownFrame.Visible = false
+    else
+        openDropdown("tgt")
+    end
+end)
+
+swapBtn.MouseButton1Click:Connect(function()
+    local temp = srcLangIdx
+    srcLangIdx = tgtLangIdx
+    tgtLangIdx = temp
+    srcLangBtn.Text = languages[srcLangIdx].Name .. " ▼"
+    tgtLangBtn.Text = languages[tgtLangIdx].Name .. " ▼"
+    langDropdownFrame.Visible = false
+end)
+
+local doTranslateBtn = Instance.new("TextButton")
+doTranslateBtn.Size = UDim2.new(1, -10, 0, 38)
+doTranslateBtn.Position = UDim2.fromOffset(5, 125)
+doTranslateBtn.BackgroundColor3 = ON_COLOR
+doTranslateBtn.BorderSizePixel = 0
+doTranslateBtn.Text = "🌐 Terjemahkan Sekarang"
+doTranslateBtn.TextColor3 = TEXT
+doTranslateBtn.TextSize = 12
+doTranslateBtn.Font = Enum.Font.GothamBold
+doTranslateBtn.ZIndex = 515
+doTranslateBtn.Parent = transPage
+
+local doTransCorner = Instance.new("UICorner")
+doTransCorner.CornerRadius = UDim.new(0, 8)
+doTransCorner.Parent = doTranslateBtn
+
+local resultBox = Instance.new("TextLabel")
+resultBox.Size = UDim2.new(1, -10, 0, 70)
+resultBox.Position = UDim2.fromOffset(5, 170)
+resultBox.BackgroundColor3 = BUTTON
+resultBox.BorderSizePixel = 0
+resultBox.Text = "Hasil terjemahan akan muncul di sini..."
+resultBox.TextColor3 = SUBTEXT
+resultBox.TextSize = 12
+resultBox.Font = Enum.Font.GothamMedium
+resultBox.TextYAlignment = Enum.TextYAlignment.Top
+resultBox.TextXAlignment = Enum.TextXAlignment.Left
+resultBox.TextWrapped = true
+resultBox.ZIndex = 515
+resultBox.Parent = transPage
+
+local resCorner = Instance.new("UICorner")
+resCorner.CornerRadius = UDim.new(0, 8)
+resCorner.Parent = resultBox
+
+local resPadding = Instance.new("UIPadding")
+resPadding.PaddingLeft = UDim.new(0, 8)
+resPadding.PaddingTop = UDim.new(0, 8)
+resPadding.Parent = resultBox
+
+local copyBtn = Instance.new("TextButton")
+copyBtn.Size = UDim2.new(1, -10, 0, 36)
+copyBtn.Position = UDim2.fromOffset(5, 248)
+copyBtn.BackgroundColor3 = BUTTON_HOVER
+copyBtn.BorderSizePixel = 0
+copyBtn.Text = "📋 Salin Hasil Terjemahan"
+copyBtn.TextColor3 = TEXT
+copyBtn.TextSize = 12
+copyBtn.Font = Enum.Font.GothamBold
+copyBtn.ZIndex = 515
+copyBtn.Parent = transPage
+
+local copyCorner = Instance.new("UICorner")
+copyCorner.CornerRadius = UDim.new(0, 8)
+copyCorner.Parent = copyBtn
+
+local function translateText(text, fromLang, toLang)
+    if not text or text:gsub("%s+", "") == "" then return "" end
+
+    local url = string.format(
+        "https://translate.googleapis.com/translate_a/single?client=gtx&sl=%s&tl=%s&dt=t&q=%s",
+        fromLang,
+        toLang,
+        HttpService:UrlEncode(text)
+    )
+
+    local success, response = pcall(function() return game:HttpGet(url) end)
+    if success and response then
+        local decodeSuccess, result = pcall(function() return HttpService:JSONDecode(response) end)
+        if decodeSuccess and result and result[1] and result[1][1] then
+            return result[1][1][1]
+        end
+    end
+
+    return "Gagal menerjemahkan teks!"
+end
+
+doTranslateBtn.MouseButton1Click:Connect(function()
+    langDropdownFrame.Visible = false
+    local textToTrans = transInput.Text
+    if textToTrans == "" then return end
+
+    resultBox.Text = "⏳ Menerjemahkan..."
+    resultBox.TextColor3 = SUBTEXT
+
+    task.spawn(function()
+        local srcCode = languages[srcLangIdx].Code
+        local tgtCode = languages[tgtLangIdx].Code
+        local translated = translateText(textToTrans, srcCode, tgtCode)
+
+        resultBox.Text = translated
+        resultBox.TextColor3 = TEXT
+    end)
+end)
+
+copyBtn.MouseButton1Click:Connect(function()
+    if setclipboard and resultBox.Text ~= "" and resultBox.Text ~= "Hasil terjemahan akan muncul di sini..." then
+        setclipboard(resultBox.Text)
+        copyBtn.Text = "✅ Berhasil Disalin!"
+        copyBtn.BackgroundColor3 = GREEN
+        task.wait(1.5)
+        copyBtn.Text = "📋 Salin Hasil Terjemahan"
+        copyBtn.BackgroundColor3 = BUTTON_HOVER
+    end
+end)
+
+transPage.CanvasSize = UDim2.new(0, 0, 0, 300)
+
+-- ============================================================
+-- FAST INTERACT PAGE CONTENT
+-- ============================================================
+local fastInteractEnabled = false
+local originalDurations = {}
+
+local fastRow = Instance.new("Frame")
+fastRow.Size = UDim2.new(1, -10, 0, 50)
+fastRow.Position = UDim2.fromOffset(5, 5)
+fastRow.BackgroundColor3 = BUTTON
+fastRow.BorderSizePixel = 0
+fastRow.ZIndex = 515
+fastRow.Parent = fastPage
+
+local fCorner = Instance.new("UICorner")
+fCorner.CornerRadius = UDim.new(0, 8)
+fCorner.Parent = fastRow
+
+local fastTitle = Instance.new("TextLabel")
+fastTitle.Size = UDim2.new(1, -80, 0, 24)
+fastTitle.Position = UDim2.fromOffset(10, 5)
+fastTitle.BackgroundTransparency = 1
+fastTitle.Text = "⚡ Instant ProximityPrompt"
+fastTitle.TextColor3 = TEXT
+fastTitle.TextSize = 12
+fastTitle.Font = Enum.Font.GothamBold
+fastTitle.TextXAlignment = Enum.TextXAlignment.Left
+fastTitle.ZIndex = 516
+fastTitle.Parent = fastRow
+
+local fastSub = Instance.new("TextLabel")
+fastSub.Size = UDim2.new(1, -80, 0, 16)
+fastSub.Position = UDim2.fromOffset(10, 27)
+fastSub.BackgroundTransparency = 1
+fastSub.Text = "Interaksi tombol/item 0 detik"
+fastSub.TextColor3 = SUBTEXT
+fastSub.TextSize = 10
+fastSub.Font = Enum.Font.GothamMedium
+fastSub.TextXAlignment = Enum.TextXAlignment.Left
+fastSub.ZIndex = 516
+fastSub.Parent = fastRow
+
+local fastToggle = Instance.new("TextButton")
+fastToggle.Size = UDim2.fromOffset(60, 30)
+fastToggle.Position = UDim2.new(1, -68, 0.5, -15)
+fastToggle.BackgroundColor3 = BUTTON_HOVER
+fastToggle.BorderSizePixel = 0
+fastToggle.Text = "OFF"
+fastToggle.TextColor3 = RED
+fastToggle.TextSize = 11
+fastToggle.Font = Enum.Font.GothamBold
+fastToggle.ZIndex = 517
+fastToggle.Parent = fastRow
+
+local tCorner = Instance.new("UICorner")
+tCorner.CornerRadius = UDim.new(0, 6)
+tCorner.Parent = fastToggle
+
+local function setPromptInstant(prompt)
+    if prompt:IsA("ProximityPrompt") then
+        if not originalDurations[prompt] then
+            originalDurations[prompt] = prompt.HoldDuration
+        end
+        if fastInteractEnabled then
+            prompt.HoldDuration = 0
+        else
+            if originalDurations[prompt] ~= nil then
+                prompt.HoldDuration = originalDurations[prompt]
+            end
+        end
     end
 end
 
-_G.ToggleWaypointManager = toggleWaypointManager
+local function applyFastInteractState()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        setPromptInstant(obj)
+    end
+end
+
+fastToggle.MouseButton1Click:Connect(function()
+    fastInteractEnabled = not fastInteractEnabled
+    if fastInteractEnabled then
+        fastToggle.Text = "ON"
+        fastToggle.TextColor3 = GREEN
+        fastToggle.BackgroundColor3 = BUTTON
+    else
+        fastToggle.Text = "OFF"
+        fastToggle.TextColor3 = RED
+        fastToggle.BackgroundColor3 = BUTTON_HOVER
+    end
+    applyFastInteractState()
+end)
+
+Workspace.DescendantAdded:Connect(function(descendant)
+    if fastInteractEnabled then
+        task.wait(0.1)
+        setPromptInstant(descendant)
+    end
+end)
+
+fastPage.CanvasSize = UDim2.new(0, 0, 0, 70)
 
 -- ============================================================
--- DRAG
+-- CLONE AVATAR PAGE CONTENT
+-- ============================================================
+local selectedTargetUserId = nil
+
+local plrSelectBtn = Instance.new("TextButton")
+plrSelectBtn.Size = UDim2.new(1, -10, 0, 36)
+plrSelectBtn.Position = UDim2.fromOffset(5, 5)
+plrSelectBtn.BackgroundColor3 = BUTTON
+plrSelectBtn.BorderSizePixel = 0
+plrSelectBtn.Text = "Pilih Pemain di Server... ▼"
+plrSelectBtn.TextColor3 = TEXT
+plrSelectBtn.TextSize = 11
+plrSelectBtn.Font = Enum.Font.GothamBold
+plrSelectBtn.ZIndex = 515
+plrSelectBtn.Parent = clonePage
+
+local pSelCorner = Instance.new("UICorner")
+pSelCorner.CornerRadius = UDim.new(0, 8)
+pSelCorner.Parent = plrSelectBtn
+
+local playerDropdown = Instance.new("Frame")
+playerDropdown.Size = UDim2.new(1, -10, 0, 110)
+playerDropdown.Position = UDim2.fromOffset(5, 45)
+playerDropdown.BackgroundColor3 = BG
+playerDropdown.BorderSizePixel = 0
+playerDropdown.ZIndex = 600
+playerDropdown.Visible = false
+playerDropdown.Parent = clonePage
+
+local pDropCorner = Instance.new("UICorner")
+pDropCorner.CornerRadius = UDim.new(0, 8)
+pDropCorner.Parent = playerDropdown
+
+local pDropStroke = Instance.new("UIStroke")
+pDropStroke.Color = Color3.fromRGB(80, 80, 90)
+pDropStroke.Thickness = 1
+pDropStroke.Parent = playerDropdown
+
+local pDropScroll = Instance.new("ScrollingFrame")
+pDropScroll.Size = UDim2.new(1, 0, 1, 0)
+pDropScroll.BackgroundTransparency = 1
+pDropScroll.BorderSizePixel = 0
+pDropScroll.ScrollBarThickness = 4
+pDropScroll.ZIndex = 601
+pDropScroll.Active = true
+pDropScroll.Parent = playerDropdown
+
+local pDropLayout = Instance.new("UIListLayout")
+pDropLayout.Padding = UDim.new(0, 2)
+pDropLayout.Parent = pDropScroll
+
+local function openPlayerDropdown()
+    for _, child in ipairs(pDropScroll:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+
+    local count = 0
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= Player then
+            count = count + 1
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -8, 0, 28)
+            btn.BackgroundColor3 = BUTTON_HOVER
+            btn.BorderSizePixel = 0
+            btn.Text = plr.DisplayName .. " (@" .. plr.Name .. ")"
+            btn.TextColor3 = TEXT
+            btn.TextSize = 11
+            btn.Font = Enum.Font.GothamMedium
+            btn.ZIndex = 602
+            btn.Parent = pDropScroll
+
+            local bCorner = Instance.new("UICorner")
+            bCorner.CornerRadius = UDim.new(0, 5)
+            bCorner.Parent = btn
+
+            btn.MouseButton1Click:Connect(function()
+                selectedTargetUserId = plr.UserId
+                plrSelectBtn.Text = "Target: " .. plr.Name .. " ▼"
+                playerDropdown.Visible = false
+            end)
+        end
+    end
+
+    pDropScroll.CanvasSize = UDim2.new(0, 0, 0, count * 30)
+    playerDropdown.Visible = not playerDropdown.Visible
+end
+
+plrSelectBtn.MouseButton1Click:Connect(openPlayerDropdown)
+
+local userInputBox = Instance.new("TextBox")
+userInputBox.Size = UDim2.new(1, -10, 0, 36)
+userInputBox.Position = UDim2.fromOffset(5, 48)
+userInputBox.BackgroundColor3 = BUTTON
+userInputBox.BorderSizePixel = 0
+userInputBox.Text = ""
+userInputBox.PlaceholderText = "Atau ketik Username / UserId Target..."
+userInputBox.PlaceholderColor3 = SUBTEXT
+userInputBox.TextColor3 = TEXT
+userInputBox.TextSize = 11
+userInputBox.Font = Enum.Font.GothamMedium
+userInputBox.ClearTextOnFocus = false
+userInputBox.ZIndex = 515
+userInputBox.Parent = clonePage
+
+local uBoxCorner = Instance.new("UICorner")
+uBoxCorner.CornerRadius = UDim.new(0, 8)
+uBoxCorner.Parent = userInputBox
+
+local copyAvatarBtn = Instance.new("TextButton")
+copyAvatarBtn.Size = UDim2.new(1, -10, 0, 38)
+copyAvatarBtn.Position = UDim2.fromOffset(5, 92)
+copyAvatarBtn.BackgroundColor3 = ON_COLOR
+copyAvatarBtn.BorderSizePixel = 0
+copyAvatarBtn.Text = "👤 Copy Avatar Target"
+copyAvatarBtn.TextColor3 = TEXT
+copyAvatarBtn.TextSize = 12
+copyAvatarBtn.Font = Enum.Font.GothamBold
+copyAvatarBtn.ZIndex = 515
+copyAvatarBtn.Parent = clonePage
+
+local cAvCorner = Instance.new("UICorner")
+cAvCorner.CornerRadius = UDim.new(0, 8)
+cAvCorner.Parent = copyAvatarBtn
+
+local resetAvatarBtn = Instance.new("TextButton")
+resetAvatarBtn.Size = UDim2.new(1, -10, 0, 36)
+resetAvatarBtn.Position = UDim2.fromOffset(5, 136)
+resetAvatarBtn.BackgroundColor3 = BUTTON_HOVER
+resetAvatarBtn.BorderSizePixel = 0
+resetAvatarBtn.Text = "🔄 Reset Ke Avatar Asli"
+resetAvatarBtn.TextColor3 = TEXT
+resetAvatarBtn.TextSize = 11
+resetAvatarBtn.Font = Enum.Font.GothamBold
+resetAvatarBtn.ZIndex = 515
+resetAvatarBtn.Parent = clonePage
+
+local rAvCorner = Instance.new("UICorner")
+rAvCorner.CornerRadius = UDim.new(0, 8)
+rAvCorner.Parent = resetAvatarBtn
+
+local cloneStatusLabel = Instance.new("TextLabel")
+cloneStatusLabel.Size = UDim2.new(1, -10, 0, 30)
+cloneStatusLabel.Position = UDim2.fromOffset(5, 178)
+cloneStatusLabel.BackgroundTransparency = 1
+cloneStatusLabel.Text = "Pilih pemain atau ketik username untuk meniru avatar."
+cloneStatusLabel.TextColor3 = SUBTEXT
+cloneStatusLabel.TextSize = 10
+cloneStatusLabel.Font = Enum.Font.GothamMedium
+cloneStatusLabel.TextWrapped = true
+cloneStatusLabel.ZIndex = 515
+cloneStatusLabel.Parent = clonePage
+
+local function applyTargetAppearance(targetUserId)
+    local character = getCharacter()
+    if not character then return end
+
+    cloneStatusLabel.Text = "⏳ Mengambil data avatar target..."
+    cloneStatusLabel.TextColor3 = SUBTEXT
+
+    task.spawn(function()
+        local success, appearance = pcall(function()
+            return Players:GetCharacterAppearanceAsync(targetUserId)
+        end)
+
+        if success and appearance then
+            -- 1. Hapus Pakaian & Aksesoris Lama
+            for _, child in ipairs(character:GetChildren()) do
+                if child:IsA("Accessory") or child:IsA("Shirt") or child:IsA("Pants") or child:IsA("BodyColors") or child:IsA("ShirtGraphic") then
+                    child:Destroy()
+                end
+            end
+
+            -- 2. Pasang Tampilan Avatar Baru
+            for _, item in ipairs(appearance:GetChildren()) do
+                item.Parent = character
+            end
+
+            cloneStatusLabel.Text = "🟢 Berhasil meniru avatar target!"
+            cloneStatusLabel.TextColor3 = GREEN
+        else
+            cloneStatusLabel.Text = "❌ Gagal mengambil avatar target."
+            cloneStatusLabel.TextColor3 = RED
+        end
+    end)
+end
+
+copyAvatarBtn.MouseButton1Click:Connect(function()
+    playerDropdown.Visible = false
+    local manualInput = userInputBox.Text:gsub("%s+", "")
+
+    if manualInput ~= "" then
+        if tonumber(manualInput) then
+            applyTargetAppearance(tonumber(manualInput))
+        else
+            task.spawn(function()
+                local success, userId = pcall(function()
+                    return Players:GetUserIdFromNameAsync(manualInput)
+                end)
+                if success and userId then
+                    applyTargetAppearance(userId)
+                else
+                    cloneStatusLabel.Text = "❌ Username target tidak ditemukan."
+                    cloneStatusLabel.TextColor3 = RED
+                end
+            end)
+        end
+    elseif selectedTargetUserId then
+        applyTargetAppearance(selectedTargetUserId)
+    else
+        cloneStatusLabel.Text = "⚠️ Silakan pilih pemain atau ketik username terlebih dahulu!"
+        cloneStatusLabel.TextColor3 = RED
+    end
+end)
+
+resetAvatarBtn.MouseButton1Click:Connect(function()
+    playerDropdown.Visible = false
+    applyTargetAppearance(Player.UserId)
+end)
+
+clonePage.CanvasSize = UDim2.new(0, 0, 0, 220)
+
+-- ============================================================
+-- DRAGGING LOGIC CONTROL (− BUTTON)
 -- ============================================================
 local isDraggingMenu = false
 local dragStartPos = nil
 local dragStartMouse = nil
 
-frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+dragButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         isDraggingMenu = true
         dragStartPos = frame.Position
         dragStartMouse = UserInputService:GetMouseLocation()
@@ -172,487 +1165,22 @@ end)
 
 UserInputService.InputChanged:Connect(function(input)
     if not isDraggingMenu then return end
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
         local currentMouse = UserInputService:GetMouseLocation()
         local delta = currentMouse - dragStartMouse
-        frame.Position = UDim2.new(dragStartPos.X.Scale, dragStartPos.X.Offset + delta.X, dragStartPos.Y.Scale, dragStartPos.Y.Offset + delta.Y)
+        frame.Position = UDim2.new(
+            dragStartPos.X.Scale, 
+            dragStartPos.X.Offset + delta.X, 
+            dragStartPos.Y.qScale, 
+            dragStartPos.Y.Offset + delta.Y
+        )
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         isDraggingMenu = false
     end
 end)
 
--- ============================================================
--- HELPERS
--- ============================================================
-local function createButton(parent, text, y, width)
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -10, 0, 45)
-    button.Position = UDim2.fromOffset(5, y)
-    if width then button.Size = UDim2.fromOffset(width, 45) end
-    button.BackgroundColor3 = BUTTON
-    button.BorderSizePixel = 0
-    button.Text = text
-    button.TextColor3 = TEXT
-    button.TextSize = 14
-    button.Font = Enum.Font.GothamMedium
-    button.AutoButtonColor = false
-    button.ZIndex = 115
-    button.Parent = parent
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = button
-    button.MouseEnter:Connect(function()
-        if button.BackgroundColor3 == BUTTON then button.BackgroundColor3 = BUTTON_HOVER end
-    end)
-    button.MouseLeave:Connect(function()
-        if button.BackgroundColor3 == BUTTON_HOVER then button.BackgroundColor3 = BUTTON end
-    end)
-    return button
-end
-
-local function createPage(canvasHeight)
-    local page = Instance.new("ScrollingFrame")
-    page.Size = UDim2.new(1, -20, 1, -105)
-    page.Position = UDim2.fromOffset(10, 100)
-    page.BackgroundTransparency = 1
-    page.BorderSizePixel = 0
-    page.ScrollBarThickness = 5
-    page.ScrollBarImageTransparency = 0.2
-    page.ScrollBarImageColor3 = Color3.fromRGB(100,100,110)
-    page.ScrollingDirection = Enum.ScrollingDirection.Y
-    page.CanvasSize = UDim2.new(0,0,0,canvasHeight)
-    page.Active = true
-    page.Selectable = false
-    page.ZIndex = 105
-    page.Parent = frame
-    return page
-end
-
-local waypointPage = createPage(500)
-
-local addBtn = createButton(waypointPage, "➕ Add Waypoint", 0)
-addBtn.BackgroundColor3 = CATEGORY_SELECTED
-
-local listFrame = Instance.new("Frame")
-listFrame.Size = UDim2.new(1, -20, 1, -60)
-listFrame.Position = UDim2.fromOffset(5, 50)
-listFrame.BackgroundColor3 = BUTTON
-listFrame.BackgroundTransparency = 0
-listFrame.BorderSizePixel = 0
-listFrame.ZIndex = 115
-listFrame.Parent = waypointPage
-
-local listCorner = Instance.new("UICorner")
-listCorner.CornerRadius = UDim.new(0, 8)
-listCorner.Parent = listFrame
-
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 5)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = listFrame
-
--- ============================================================
--- DATA
--- ============================================================
-local waypoints = {}
-local wpCounter = 0
-
--- ============================================================
--- FORCE SAVE — PASTI KESIMPEN!
--- ============================================================
-local function forceSave()
-    -- 1. SAVE KE HTTPSERVICE
-    local success, json = pcall(function() return HttpService:GetAsync(CONFIG_KEY) end)
-    local config = {}
-    if success and json then
-        config = HttpService:JSONDecode(json)
-    end
-    
-    config.waypoints = waypoints
-    config.wpCounter = wpCounter
-    
-    local newJson = HttpService:JSONEncode(config)
-    pcall(function() HttpService:SetAsync(CONFIG_KEY, newJson) end)
-    
-    -- 2. SAVE KE CLIPBOARD (BACKUP)
-    if setclipboard then
-        local backup = HttpService:JSONEncode({
-            waypoints = waypoints,
-            wpCounter = wpCounter,
-            timestamp = os.time()
-        })
-        pcall(function() setclipboard(backup) end)
-    end
-    
-    -- 3. FEEDBACK VISUAL
-    addBtn.Text = "💾"
-    addBtn.BackgroundColor3 = GREEN
-    task.wait(0.3)
-    addBtn.Text = "➕ Add Waypoint"
-    addBtn.BackgroundColor3 = CATEGORY_SELECTED
-end
-
--- ============================================================
--- LOAD DATA
--- ============================================================
-local function loadData()
-    local success, json = pcall(function() return HttpService:GetAsync(CONFIG_KEY) end)
-    if success and json then
-        local config = HttpService:JSONDecode(json)
-        if config and config.waypoints then
-            waypoints = config.waypoints
-            wpCounter = config.wpCounter or #waypoints
-            return true
-        end
-    end
-    return false
-end
-
--- ============================================================
--- AUTO-SAVE TIAP 10 DETIK (PASTI AMAN!)
--- ============================================================
-task.spawn(function()
-    while gui and gui.Parent do
-        task.wait(10)
-        if #waypoints > 0 then
-            local success, json = pcall(function() return HttpService:GetAsync(CONFIG_KEY) end)
-            local config = {}
-            if success and json then
-                config = HttpService:JSONDecode(json)
-            end
-            config.waypoints = waypoints
-            config.wpCounter = wpCounter
-            local newJson = HttpService:JSONEncode(config)
-            pcall(function() HttpService:SetAsync(CONFIG_KEY, newJson) end)
-        end
-    end
-end)
-
--- ============================================================
--- RENAME DIALOG
--- ============================================================
-local function showRenameDialog(wp)
-    local overlay = Instance.new("Frame")
-    overlay.Size = UDim2.new(1, 0, 1, 0)
-    overlay.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    overlay.BackgroundTransparency = 0.4
-    overlay.ZIndex = 300
-    overlay.Parent = frame
-
-    local dialog = Instance.new("Frame")
-    dialog.Size = UDim2.fromOffset(240, 100)
-    dialog.Position = UDim2.new(0.5, -120, 0.5, -50)
-    dialog.BackgroundColor3 = BG
-    dialog.BorderSizePixel = 0
-    dialog.ZIndex = 301
-    dialog.Parent = overlay
-
-    local dialogCorner = Instance.new("UICorner")
-    dialogCorner.CornerRadius = UDim.new(0, 10)
-    dialogCorner.Parent = dialog
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -20, 0, 25)
-    label.Position = UDim2.fromOffset(10, 8)
-    label.BackgroundTransparency = 1
-    label.Text = "✏️ Rename Waypoint"
-    label.TextColor3 = TEXT
-    label.TextSize = 14
-    label.Font = Enum.Font.GothamBold
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 302
-    label.Parent = dialog
-
-    local input = Instance.new("TextBox")
-    input.Size = UDim2.new(1, -20, 0, 30)
-    input.Position = UDim2.fromOffset(10, 38)
-    input.BackgroundColor3 = BUTTON
-    input.BorderSizePixel = 0
-    input.Text = wp.n or "WP"
-    input.TextColor3 = TEXT
-    input.TextSize = 14
-    input.Font = Enum.Font.GothamMedium
-    input.ClearTextOnFocus = true
-    input.ZIndex = 302
-    input.Parent = dialog
-
-    local inputCorner = Instance.new("UICorner")
-    inputCorner.CornerRadius = UDim.new(0, 6)
-    inputCorner.Parent = input
-
-    local saveBtn = Instance.new("TextButton")
-    saveBtn.Size = UDim2.fromOffset(70, 30)
-    saveBtn.Position = UDim2.new(0.5, -80, 1, -38)
-    saveBtn.BackgroundColor3 = ON_COLOR
-    saveBtn.BorderSizePixel = 0
-    saveBtn.Text = "Save"
-    saveBtn.TextColor3 = TEXT
-    saveBtn.TextSize = 13
-    saveBtn.Font = Enum.Font.GothamBold
-    saveBtn.AutoButtonColor = false
-    saveBtn.ZIndex = 302
-    saveBtn.Parent = dialog
-
-    local saveCorner = Instance.new("UICorner")
-    saveCorner.CornerRadius = UDim.new(0, 6)
-    saveCorner.Parent = saveBtn
-
-    local cancelBtn = Instance.new("TextButton")
-    cancelBtn.Size = UDim2.fromOffset(70, 30)
-    cancelBtn.Position = UDim2.new(0.5, 10, 1, -38)
-    cancelBtn.BackgroundColor3 = BUTTON
-    cancelBtn.BorderSizePixel = 0
-    cancelBtn.Text = "Cancel"
-    cancelBtn.TextColor3 = TEXT
-    cancelBtn.TextSize = 13
-    cancelBtn.Font = Enum.Font.GothamBold
-    cancelBtn.AutoButtonColor = false
-    cancelBtn.ZIndex = 302
-    cancelBtn.Parent = dialog
-
-    local cancelCorner = Instance.new("UICorner")
-    cancelCorner.CornerRadius = UDim.new(0, 6)
-    cancelCorner.Parent = cancelBtn
-
-    local function closeDialog()
-        overlay:Destroy()
-    end
-
-    saveBtn.MouseButton1Click:Connect(function()
-        local newName = input.Text:gsub("^%s*", ""):gsub("%s*$", "")
-        if newName ~= "" then
-            wp.n = newName
-            forceSave()
-            refreshWaypoint()
-        end
-        closeDialog()
-    end)
-
-    cancelBtn.MouseButton1Click:Connect(closeDialog)
-
-    input.FocusLost:Connect(function(enterPressed)
-        if enterPressed then
-            saveBtn.MouseButton1Click:Fire()
-        end
-    end)
-
-    overlay.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            local mousePos = input.Position
-            local dialogPos = dialog.AbsolutePosition
-            local dialogSize = dialog.AbsoluteSize
-            if mousePos.X < dialogPos.X or mousePos.X > dialogPos.X + dialogSize.X or
-               mousePos.Y < dialogPos.Y or mousePos.Y > dialogPos.Y + dialogSize.Y then
-                closeDialog()
-            end
-        end
-    end)
-
-    input:CaptureFocus()
-end
-
--- ============================================================
--- REFRESH WAYPOINT
--- ============================================================
-local function refreshWaypoint()
-    for _, child in ipairs(listFrame:GetChildren()) do
-        if child:IsA("Frame") or child:IsA("TextLabel") then
-            child:Destroy()
-        end
-    end
-
-    if #waypoints == 0 then
-        local empty = Instance.new("TextLabel")
-        empty.Size = UDim2.new(1, 0, 0, 40)
-        empty.BackgroundTransparency = 1
-        empty.Text = "📍 Belum ada waypoint."
-        empty.TextColor3 = SUBTEXT
-        empty.TextSize = 13
-        empty.Font = Enum.Font.Gotham
-        empty.TextXAlignment = Enum.TextXAlignment.Center
-        empty.ZIndex = 116
-        empty.Parent = listFrame
-        listFrame.Size = UDim2.new(1, -20, 0, 60)
-        waypointPage.CanvasSize = UDim2.new(0, 0, 0, 120)
-        return
-    end
-
-    for i, wp in ipairs(waypoints) do
-        local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, 0, 0, 42)
-        row.BackgroundColor3 = BUTTON_HOVER
-        row.BorderSizePixel = 0
-        row.ZIndex = 117
-        row.Parent = listFrame
-
-        local rowCorner = Instance.new("UICorner")
-        rowCorner.CornerRadius = UDim.new(0, 6)
-        rowCorner.Parent = row
-
-        local nameLabel = Instance.new("TextLabel")
-        nameLabel.Size = UDim2.new(0.35, -5, 1, 0)
-        nameLabel.Position = UDim2.fromOffset(8, 0)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = wp.n or "WP"
-        nameLabel.TextColor3 = TEXT
-        nameLabel.TextSize = 13
-        nameLabel.Font = Enum.Font.GothamBold
-        nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-        nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-        nameLabel.ZIndex = 118
-        nameLabel.Parent = row
-
-        nameLabel.MouseEnter:Connect(function()
-            nameLabel.TextColor3 = ON_COLOR
-        end)
-        nameLabel.MouseLeave:Connect(function()
-            nameLabel.TextColor3 = TEXT
-        end)
-
-        local coord = Instance.new("TextLabel")
-        coord.Size = UDim2.new(0.30, -5, 1, 0)
-        coord.Position = UDim2.new(0.35, 0, 0, 0)
-        coord.BackgroundTransparency = 1
-        coord.Text = string.format("%.0f, %.0f, %.0f", wp.X, wp.Y, wp.Z)
-        coord.TextColor3 = SUBTEXT
-        coord.TextSize = 11
-        coord.Font = Enum.Font.Gotham
-        coord.TextXAlignment = Enum.TextXAlignment.Center
-        coord.TextTruncate = Enum.TextTruncate.AtEnd
-        coord.ZIndex = 118
-        coord.Parent = row
-
-        local btnY = 0.5
-        local btnSize = 26
-
-        local tp = Instance.new("TextButton")
-        tp.Size = UDim2.fromOffset(btnSize, btnSize)
-        tp.Position = UDim2.new(0.72, 0, btnY, -btnSize/2)
-        tp.BackgroundColor3 = ON_COLOR
-        tp.BorderSizePixel = 0
-        tp.Text = "TP"
-        tp.TextColor3 = TEXT
-        tp.TextSize = 10
-        tp.Font = Enum.Font.GothamBold
-        tp.AutoButtonColor = false
-        tp.ZIndex = 119
-        tp.Parent = row
-
-        local tpCorner = Instance.new("UICorner")
-        tpCorner.CornerRadius = UDim.new(0, 5)
-        tpCorner.Parent = tp
-
-        tp.MouseButton1Click:Connect(function()
-            local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                root.CFrame = CFrame.new(Vector3.new(wp.X, wp.Y, wp.Z))
-                tp.Text = "✅"
-                tp.BackgroundColor3 = GREEN
-                task.wait(0.4)
-                tp.Text = "TP"
-                tp.BackgroundColor3 = ON_COLOR
-            end
-        end)
-
-        local renameBtn = Instance.new("TextButton")
-        renameBtn.Size = UDim2.fromOffset(btnSize, btnSize)
-        renameBtn.Position = UDim2.new(0.82, 0, btnY, -btnSize/2)
-        renameBtn.BackgroundColor3 = Color3.fromRGB(255,200,50)
-        renameBtn.BorderSizePixel = 0
-        renameBtn.Text = "✎"
-        renameBtn.TextColor3 = TEXT
-        renameBtn.TextSize = 12
-        renameBtn.Font = Enum.Font.GothamBold
-        renameBtn.AutoButtonColor = false
-        renameBtn.ZIndex = 119
-        renameBtn.Parent = row
-
-        local renameCorner = Instance.new("UICorner")
-        renameCorner.CornerRadius = UDim.new(0, 5)
-        renameCorner.Parent = renameBtn
-
-        renameBtn.MouseButton1Click:Connect(function()
-            showRenameDialog(wp)
-        end)
-
-        local del = Instance.new("TextButton")
-        del.Size = UDim2.fromOffset(btnSize, btnSize)
-        del.Position = UDim2.new(0.92, 0, btnY, -btnSize/2)
-        del.BackgroundColor3 = RED
-        del.BorderSizePixel = 0
-        del.Text = "✕"
-        del.TextColor3 = TEXT
-        del.TextSize = 10
-        del.Font = Enum.Font.GothamBold
-        del.AutoButtonColor = false
-        del.ZIndex = 119
-        del.Parent = row
-
-        local delCorner = Instance.new("UICorner")
-        delCorner.CornerRadius = UDim.new(0, 5)
-        delCorner.Parent = del
-
-        del.MouseButton1Click:Connect(function()
-            table.remove(waypoints, i)
-            forceSave()
-            refreshWaypoint()
-        end)
-    end
-
-    task.wait(0.05)
-    local contentHeight = layout.AbsoluteContentSize.Y + 10
-    listFrame.Size = UDim2.new(1, -20, 0, math.max(contentHeight, 60))
-    waypointPage.CanvasSize = UDim2.new(0, 0, 0, 50 + contentHeight + 10)
-end
-
--- ============================================================
--- ADD WAYPOINT
--- ============================================================
-addBtn.MouseButton1Click:Connect(function()
-    local char = Player.Character
-    if not char then
-        addBtn.Text = "⏳"
-        addBtn.BackgroundColor3 = YELLOW
-        Player.CharacterAdded:Wait()
-        addBtn.Text = "➕ Add Waypoint"
-        addBtn.BackgroundColor3 = CATEGORY_SELECTED
-        addBtn.MouseButton1Click:Fire()
-        return
-    end
-
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then
-        addBtn.Text = "⚠️"
-        addBtn.BackgroundColor3 = RED
-        task.wait(1)
-        addBtn.Text = "➕ Add Waypoint"
-        addBtn.BackgroundColor3 = CATEGORY_SELECTED
-        return
-    end
-
-    local pos = root.Position
-    wpCounter = wpCounter + 1
-    table.insert(waypoints, {
-        n = "WP " .. wpCounter,
-        X = pos.X,
-        Y = pos.Y,
-        Z = pos.Z
-    })
-    forceSave()
-    refreshWaypoint()
-    addBtn.Text = "✅"
-    addBtn.BackgroundColor3 = GREEN
-    task.wait(0.5)
-    addBtn.Text = "➕ Add Waypoint"
-    addBtn.BackgroundColor3 = CATEGORY_SELECTED
-end)
-
--- ============================================================
--- LOAD & INIT
--- ============================================================
-loadData()
-refreshWaypoint()
+refreshWaypointList()
