@@ -1,5 +1,5 @@
 -- ============================================================
--- STRN Bypass — WAYPOINT, TRANSLATOR, INTERACT & CLONE AVATAR
+-- STRN Bypass — WAYPOINT, TRANSLATOR & FAST INTERACT
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -154,13 +154,13 @@ tabHolder.ZIndex = 505
 tabHolder.Parent = frame
 
 local waypointTabBtn = Instance.new("TextButton")
-waypointTabBtn.Size = UDim2.new(0.24, 0, 1, 0)
+waypointTabBtn.Size = UDim2.new(0.32, 0, 1, 0)
 waypointTabBtn.Position = UDim2.fromOffset(0, 0)
 waypointTabBtn.BackgroundColor3 = ON_COLOR
 waypointTabBtn.BorderSizePixel = 0
 waypointTabBtn.Text = "📍 Waypoint"
 waypointTabBtn.TextColor3 = TEXT
-waypointTabBtn.TextSize = 9
+waypointTabBtn.TextSize = 10
 waypointTabBtn.Font = Enum.Font.GothamBold
 waypointTabBtn.ZIndex = 506
 waypointTabBtn.Parent = tabHolder
@@ -170,13 +170,13 @@ wayTabCorner.CornerRadius = UDim.new(0, 6)
 wayTabCorner.Parent = waypointTabBtn
 
 local transTabBtn = Instance.new("TextButton")
-transTabBtn.Size = UDim2.new(0.24, 0, 1, 0)
-transTabBtn.Position = UDim2.new(0.25, 0, 0, 0)
+transTabBtn.Size = UDim2.new(0.33, 0, 1, 0)
+transTabBtn.Position = UDim2.new(0.335, 0, 0, 0)
 transTabBtn.BackgroundColor3 = BUTTON
 transTabBtn.BorderSizePixel = 0
 transTabBtn.Text = "🌐 Translate"
 transTabBtn.TextColor3 = TEXT
-transTabBtn.TextSize = 9
+transTabBtn.TextSize = 10
 transTabBtn.Font = Enum.Font.GothamBold
 transTabBtn.ZIndex = 506
 transTabBtn.Parent = tabHolder
@@ -186,36 +186,20 @@ transTabCorner.CornerRadius = UDim.new(0, 6)
 transTabCorner.Parent = transTabBtn
 
 local fastTabBtn = Instance.new("TextButton")
-fastTabBtn.Size = UDim2.new(0.24, 0, 1, 0)
-fastTabBtn.Position = UDim2.new(0.50, 0, 0, 0)
+fastTabBtn.Size = UDim2.new(0.32, 0, 1, 0)
+fastTabBtn.Position = UDim2.new(0.68, 0, 0, 0)
 fastTabBtn.BackgroundColor3 = BUTTON
 fastTabBtn.BorderSizePixel = 0
 fastTabBtn.Text = "⚡ Interact"
 fastTabBtn.TextColor3 = TEXT
-fastTabBtn.TextSize = 9
+fastTabBtn.TextSize = 10
 fastTabBtn.Font = Enum.Font.GothamBold
 fastTabBtn.ZIndex = 506
-fastTabBtn.Parent = fastTabBtn.Parent
+fastTabBtn.Parent = tabHolder
 
 local fastTabCorner = Instance.new("UICorner")
 fastTabCorner.CornerRadius = UDim.new(0, 6)
 fastTabCorner.Parent = fastTabBtn
-
-local cloneTabBtn = Instance.new("TextButton")
-cloneTabBtn.Size = UDim2.new(0.24, 0, 1, 0)
-cloneTabBtn.Position = UDim2.new(0.75, 0, 0, 0)
-cloneTabBtn.BackgroundColor3 = BUTTON
-cloneTabBtn.BorderSizePixel = 0
-cloneTabBtn.Text = "👤 Clone"
-cloneTabBtn.TextColor3 = TEXT
-cloneTabBtn.TextSize = 9
-cloneTabBtn.Font = Enum.Font.GothamBold
-cloneTabBtn.ZIndex = 506
-cloneTabBtn.Parent = tabHolder
-
-local cloneTabCorner = Instance.new("UICorner")
-cloneTabCorner.CornerRadius = UDim.new(0, 6)
-cloneTabCorner.Parent = cloneTabBtn
 
 -- SCROLLING PAGES
 local waypointPage = Instance.new("ScrollingFrame")
@@ -259,36 +243,19 @@ fastPage.Visible = false
 fastPage.ZIndex = 505
 fastPage.Parent = frame
 
-local clonePage = Instance.new("ScrollingFrame")
-clonePage.Size = UDim2.new(1, -20, 1, -92)
-clonePage.Position = UDim2.fromOffset(10, 85)
-clonePage.BackgroundTransparency = 1
-clonePage.BorderSizePixel = 0
-clonePage.ScrollBarThickness = 5
-clonePage.ScrollBarImageTransparency = 0.2
-clonePage.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 110)
-clonePage.ScrollingDirection = Enum.ScrollingDirection.Y
-clonePage.Active = true
-clonePage.Visible = false
-clonePage.ZIndex = 505
-clonePage.Parent = frame
-
 local function switchTab(tabIndex)
     waypointPage.Visible = (tabIndex == 1)
     transPage.Visible = (tabIndex == 2)
     fastPage.Visible = (tabIndex == 3)
-    clonePage.Visible = (tabIndex == 4)
 
     waypointTabBtn.BackgroundColor3 = (tabIndex == 1) and ON_COLOR or BUTTON
     transTabBtn.BackgroundColor3 = (tabIndex == 2) and ON_COLOR or BUTTON
     fastTabBtn.BackgroundColor3 = (tabIndex == 3) and ON_COLOR or BUTTON
-    cloneTabBtn.BackgroundColor3 = (tabIndex == 4) and ON_COLOR or BUTTON
 end
 
 waypointTabBtn.MouseButton1Click:Connect(function() switchTab(1) end)
 transTabBtn.MouseButton1Click:Connect(function() switchTab(2) end)
 fastTabBtn.MouseButton1Click:Connect(function() switchTab(3) end)
-cloneTabBtn.MouseButton1Click:Connect(function() switchTab(4) end)
 
 -- ============================================================
 -- WAYPOINT PAGE CONTENT
@@ -927,228 +894,6 @@ end)
 fastPage.CanvasSize = UDim2.new(0, 0, 0, 70)
 
 -- ============================================================
--- CLONE AVATAR PAGE CONTENT
--- ============================================================
-local selectedTargetUserId = nil
-
-local plrSelectBtn = Instance.new("TextButton")
-plrSelectBtn.Size = UDim2.new(1, -10, 0, 36)
-plrSelectBtn.Position = UDim2.fromOffset(5, 5)
-plrSelectBtn.BackgroundColor3 = BUTTON
-plrSelectBtn.BorderSizePixel = 0
-plrSelectBtn.Text = "Pilih Pemain di Server... ▼"
-plrSelectBtn.TextColor3 = TEXT
-plrSelectBtn.TextSize = 11
-plrSelectBtn.Font = Enum.Font.GothamBold
-plrSelectBtn.ZIndex = 515
-plrSelectBtn.Parent = clonePage
-
-local pSelCorner = Instance.new("UICorner")
-pSelCorner.CornerRadius = UDim.new(0, 8)
-pSelCorner.Parent = plrSelectBtn
-
-local playerDropdown = Instance.new("Frame")
-playerDropdown.Size = UDim2.new(1, -10, 0, 110)
-playerDropdown.Position = UDim2.fromOffset(5, 45)
-playerDropdown.BackgroundColor3 = BG
-playerDropdown.BorderSizePixel = 0
-playerDropdown.ZIndex = 600
-playerDropdown.Visible = false
-playerDropdown.Parent = clonePage
-
-local pDropCorner = Instance.new("UICorner")
-pDropCorner.CornerRadius = UDim.new(0, 8)
-pDropCorner.Parent = playerDropdown
-
-local pDropStroke = Instance.new("UIStroke")
-pDropStroke.Color = Color3.fromRGB(80, 80, 90)
-pDropStroke.Thickness = 1
-pDropStroke.Parent = playerDropdown
-
-local pDropScroll = Instance.new("ScrollingFrame")
-pDropScroll.Size = UDim2.new(1, 0, 1, 0)
-pDropScroll.BackgroundTransparency = 1
-pDropScroll.BorderSizePixel = 0
-pDropScroll.ScrollBarThickness = 4
-pDropScroll.ZIndex = 601
-pDropScroll.Active = true
-pDropScroll.Parent = playerDropdown
-
-local pDropLayout = Instance.new("UIListLayout")
-pDropLayout.Padding = UDim.new(0, 2)
-pDropLayout.Parent = pDropScroll
-
-local function openPlayerDropdown()
-    for _, child in ipairs(pDropScroll:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
-    end
-
-    local count = 0
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= Player then
-            count = count + 1
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1, -8, 0, 28)
-            btn.BackgroundColor3 = BUTTON_HOVER
-            btn.BorderSizePixel = 0
-            btn.Text = plr.DisplayName .. " (@" .. plr.Name .. ")"
-            btn.TextColor3 = TEXT
-            btn.TextSize = 11
-            btn.Font = Enum.Font.GothamMedium
-            btn.ZIndex = 602
-            btn.Parent = pDropScroll
-
-            local bCorner = Instance.new("UICorner")
-            bCorner.CornerRadius = UDim.new(0, 5)
-            bCorner.Parent = btn
-
-            btn.MouseButton1Click:Connect(function()
-                selectedTargetUserId = plr.UserId
-                plrSelectBtn.Text = "Target: " .. plr.Name .. " ▼"
-                playerDropdown.Visible = false
-            end)
-        end
-    end
-
-    pDropScroll.CanvasSize = UDim2.new(0, 0, 0, count * 30)
-    playerDropdown.Visible = not playerDropdown.Visible
-end
-
-plrSelectBtn.MouseButton1Click:Connect(openPlayerDropdown)
-
-local userInputBox = Instance.new("TextBox")
-userInputBox.Size = UDim2.new(1, -10, 0, 36)
-userInputBox.Position = UDim2.fromOffset(5, 48)
-userInputBox.BackgroundColor3 = BUTTON
-userInputBox.BorderSizePixel = 0
-userInputBox.Text = ""
-userInputBox.PlaceholderText = "Atau ketik Username / UserId Target..."
-userInputBox.PlaceholderColor3 = SUBTEXT
-userInputBox.TextColor3 = TEXT
-userInputBox.TextSize = 11
-userInputBox.Font = Enum.Font.GothamMedium
-userInputBox.ClearTextOnFocus = false
-userInputBox.ZIndex = 515
-userInputBox.Parent = clonePage
-
-local uBoxCorner = Instance.new("UICorner")
-uBoxCorner.CornerRadius = UDim.new(0, 8)
-uBoxCorner.Parent = userInputBox
-
-local copyAvatarBtn = Instance.new("TextButton")
-copyAvatarBtn.Size = UDim2.new(1, -10, 0, 38)
-copyAvatarBtn.Position = UDim2.fromOffset(5, 92)
-copyAvatarBtn.BackgroundColor3 = ON_COLOR
-copyAvatarBtn.BorderSizePixel = 0
-copyAvatarBtn.Text = "👤 Copy Avatar Target"
-copyAvatarBtn.TextColor3 = TEXT
-copyAvatarBtn.TextSize = 12
-copyAvatarBtn.Font = Enum.Font.GothamBold
-copyAvatarBtn.ZIndex = 515
-copyAvatarBtn.Parent = clonePage
-
-local cAvCorner = Instance.new("UICorner")
-cAvCorner.CornerRadius = UDim.new(0, 8)
-cAvCorner.Parent = copyAvatarBtn
-
-local resetAvatarBtn = Instance.new("TextButton")
-resetAvatarBtn.Size = UDim2.new(1, -10, 0, 36)
-resetAvatarBtn.Position = UDim2.fromOffset(5, 136)
-resetAvatarBtn.BackgroundColor3 = BUTTON_HOVER
-resetAvatarBtn.BorderSizePixel = 0
-resetAvatarBtn.Text = "🔄 Reset Ke Avatar Asli"
-resetAvatarBtn.TextColor3 = TEXT
-resetAvatarBtn.TextSize = 11
-resetAvatarBtn.Font = Enum.Font.GothamBold
-resetAvatarBtn.ZIndex = 515
-resetAvatarBtn.Parent = clonePage
-
-local rAvCorner = Instance.new("UICorner")
-rAvCorner.CornerRadius = UDim.new(0, 8)
-rAvCorner.Parent = resetAvatarBtn
-
-local cloneStatusLabel = Instance.new("TextLabel")
-cloneStatusLabel.Size = UDim2.new(1, -10, 0, 30)
-cloneStatusLabel.Position = UDim2.fromOffset(5, 178)
-cloneStatusLabel.BackgroundTransparency = 1
-cloneStatusLabel.Text = "Pilih pemain atau ketik username untuk meniru avatar."
-cloneStatusLabel.TextColor3 = SUBTEXT
-cloneStatusLabel.TextSize = 10
-cloneStatusLabel.Font = Enum.Font.GothamMedium
-cloneStatusLabel.TextWrapped = true
-cloneStatusLabel.ZIndex = 515
-cloneStatusLabel.Parent = clonePage
-
-local function applyTargetAppearance(targetUserId)
-    local character = getCharacter()
-    if not character then return end
-
-    cloneStatusLabel.Text = "⏳ Mengambil data avatar target..."
-    cloneStatusLabel.TextColor3 = SUBTEXT
-
-    task.spawn(function()
-        local success, appearance = pcall(function()
-            return Players:GetCharacterAppearanceAsync(targetUserId)
-        end)
-
-        if success and appearance then
-            -- 1. Hapus Pakaian & Aksesoris Lama
-            for _, child in ipairs(character:GetChildren()) do
-                if child:IsA("Accessory") or child:IsA("Shirt") or child:IsA("Pants") or child:IsA("BodyColors") or child:IsA("ShirtGraphic") then
-                    child:Destroy()
-                end
-            end
-
-            -- 2. Pasang Tampilan Avatar Baru
-            for _, item in ipairs(appearance:GetChildren()) do
-                item.Parent = character
-            end
-
-            cloneStatusLabel.Text = "🟢 Berhasil meniru avatar target!"
-            cloneStatusLabel.TextColor3 = GREEN
-        else
-            cloneStatusLabel.Text = "❌ Gagal mengambil avatar target."
-            cloneStatusLabel.TextColor3 = RED
-        end
-    end)
-end
-
-copyAvatarBtn.MouseButton1Click:Connect(function()
-    playerDropdown.Visible = false
-    local manualInput = userInputBox.Text:gsub("%s+", "")
-
-    if manualInput ~= "" then
-        if tonumber(manualInput) then
-            applyTargetAppearance(tonumber(manualInput))
-        else
-            task.spawn(function()
-                local success, userId = pcall(function()
-                    return Players:GetUserIdFromNameAsync(manualInput)
-                end)
-                if success and userId then
-                    applyTargetAppearance(userId)
-                else
-                    cloneStatusLabel.Text = "❌ Username target tidak ditemukan."
-                    cloneStatusLabel.TextColor3 = RED
-                end
-            end)
-        end
-    elseif selectedTargetUserId then
-        applyTargetAppearance(selectedTargetUserId)
-    else
-        cloneStatusLabel.Text = "⚠️ Silakan pilih pemain atau ketik username terlebih dahulu!"
-        cloneStatusLabel.TextColor3 = RED
-    end
-end)
-
-resetAvatarBtn.MouseButton1Click:Connect(function()
-    playerDropdown.Visible = false
-    applyTargetAppearance(Player.UserId)
-end)
-
-clonePage.CanvasSize = UDim2.new(0, 0, 0, 220)
-
--- ============================================================
 -- DRAGGING LOGIC CONTROL (− BUTTON)
 -- ============================================================
 local isDraggingMenu = false
@@ -1171,7 +916,7 @@ UserInputService.InputChanged:Connect(function(input)
         frame.Position = UDim2.new(
             dragStartPos.X.Scale, 
             dragStartPos.X.Offset + delta.X, 
-            dragStartPos.Y.qScale, 
+            dragStartPos.Y.Scale, 
             dragStartPos.Y.Offset + delta.Y
         )
     end
