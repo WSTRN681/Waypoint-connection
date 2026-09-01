@@ -1,5 +1,5 @@
 -- ============================================================
--- STRN BP — GRAPHICS & UTILITY MODULE (STRN HUB ICON SYNC VERSION)
+-- STRN BP — FIXED & READY TO EXECUTE
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -8,6 +8,8 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local TweenService = game:GetService("TweenService")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
@@ -73,7 +75,7 @@ gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.DisplayOrder = 1000001
 gui.Parent = PlayerGui
 
--- IKON POJOK KANAN ATAS (TRANSPARAN, TIDAK BISA DIGERAKKAN, TIDAK BISA DIPENCET SENDIRI)
+-- IKON POJOK KANAN ATAS (TRANSPARAN)
 local hiddenTriggerIcon = Instance.new("TextButton")
 hiddenTriggerIcon.Name = "HiddenTrigger"
 hiddenTriggerIcon.Size = UDim2.fromOffset(20, 20)
@@ -85,7 +87,7 @@ hiddenTriggerIcon.Selectable = false
 hiddenTriggerIcon.ZIndex = 999999
 hiddenTriggerIcon.Parent = gui
 
--- SINKRONISASI UKURAN DENGAN STRN HUB V2
+-- SINKRONISASI UKURAN DENGAN STRN HUB V2 (TAMPILAN ASLI)
 local viewport = Camera.ViewportSize
 local menuWidth = math.clamp(viewport.X * 0.82, 270, 330)
 local menuHeight = math.clamp(viewport.Y * 0.62, 360, 430)
@@ -100,12 +102,13 @@ if bpYPos < 10 then
     bpYPos = 10
 end
 
--- MAIN FRAME
+-- MAIN FRAME (DIBUAT TRANSPARAN DI AWAL UNTUK EFEK FADE-IN SMOOTH)
 local frame = Instance.new("Frame")
 frame.Name = "Main"
 frame.Size = UDim2.fromOffset(menuWidth, menuHeight)
 frame.Position = UDim2.new(0, hubXPos, 0, bpYPos)
 frame.BackgroundColor3 = BG
+frame.BackgroundTransparency = 1
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.ZIndex = 300
@@ -117,8 +120,16 @@ frameCorner.Parent = frame
 
 local frameStroke = Instance.new("UIStroke")
 frameStroke.Color = Color3.fromRGB(80, 80, 90)
+frameStroke.Transparency = 1
 frameStroke.Thickness = 1
 frameStroke.Parent = frame
+
+-- ANIMASI MUNCUL PERLAHAN (FADE-IN SMOOTH)
+task.spawn(function()
+    local tInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    TweenService:Create(frame, tInfo, {BackgroundTransparency = 0}):Play()
+    TweenService:Create(frameStroke, tInfo, {Transparency = 0}):Play()
+end)
 
 -- HEADER
 local title = Instance.new("TextLabel")
@@ -151,7 +162,7 @@ local dragCorner = Instance.new("UICorner")
 dragCorner.CornerRadius = UDim.new(0, 8)
 dragCorner.Parent = dragButton
 
--- TOMBOL CLOSE (✕) - MENYEMBUNYIKAN FRAME TAPI TETAP MELOAD SISTEM BACKGROUND
+-- TOMBOL CLOSE (✕)
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.fromOffset(32, 32)
 closeButton.Position = UDim2.new(1, -42, 0, 10)
@@ -173,12 +184,11 @@ closeButton.MouseButton1Click:Connect(function()
     frame.Visible = false
 end)
 
--- FUNGSI GLOBAL AGAR STRN HUB BISA MEMBUKA KEMBALI MENU STRN BP DARI TAB SERVER
 getgenv().ToggleSTRNBypass = function()
     frame.Visible = not frame.Visible
 end
 
--- TAB SELECTOR CONTAINER (5 TAB NAVIGASI)
+-- TAB SELECTOR CONTAINER (POSISI ASLI DI ATAS)
 local tabHolder = Instance.new("Frame")
 tabHolder.Size = UDim2.new(1, -20, 0, 35)
 tabHolder.Position = UDim2.fromOffset(10, 48)
@@ -216,7 +226,7 @@ local graphicsTabBtn = createNavTab("🎨 Gfx", (tabWidth + 3) * 4)
 
 waypointTabBtn.BackgroundColor3 = ON_COLOR
 
--- SCROLLING PAGES
+-- SCROLLING PAGES (DENGAN CLIPS DESCENDANTS AGAR TRANSISI HALUS)
 local function createPageFrame()
     local p = Instance.new("ScrollingFrame")
     p.Size = UDim2.new(1, -20, 1, -95)
@@ -228,6 +238,7 @@ local function createPageFrame()
     p.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 110)
     p.ScrollingDirection = Enum.ScrollingDirection.Y
     p.Active = true
+    p.ClipsDescendants = true
     p.ZIndex = 305
     p.Parent = frame
     return p
@@ -244,12 +255,11 @@ interactPage.Visible = false
 hopPage.Visible = false
 graphicsPage.Visible = false
 
+-- FUNGSI PERGANTIAN TAB DENGAN TRANSISI FADE HALUS
+local isSwitchingTab = false
 local function switchTab(selectedPage, selectedBtn)
-    waypointPage.Visible = false
-    transPage.Visible = false
-    interactPage.Visible = false
-    hopPage.Visible = false
-    graphicsPage.Visible = false
+    if isSwitchingTab or selectedPage.Visible then return end
+    isSwitchingTab = true
 
     waypointTabBtn.BackgroundColor3 = BUTTON
     transTabBtn.BackgroundColor3 = BUTTON
@@ -257,8 +267,26 @@ local function switchTab(selectedPage, selectedBtn)
     hopTabBtn.BackgroundColor3 = BUTTON
     graphicsTabBtn.BackgroundColor3 = BUTTON
 
-    selectedPage.Visible = true
     selectedBtn.BackgroundColor3 = ON_COLOR
+
+    local pages = {waypointPage, transPage, interactPage, hopPage, graphicsPage}
+    for _, p in ipairs(pages) do
+        if p.Visible then
+            local tOut = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            TweenService:Create(p, tOut, {Position = UDim2.fromOffset(10, 105)}):Play()
+            task.wait(0.1)
+            p.Visible = false
+        end
+    end
+
+    selectedPage.Position = UDim2.fromOffset(10, 75)
+    selectedPage.Visible = true
+    local tIn = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tTween = TweenService:Create(selectedPage, tIn, {Position = UDim2.fromOffset(10, 90)})
+    tTween:Play()
+    tTween.Completed:Connect(function()
+        isSwitchingTab = false
+    end)
 end
 
 waypointTabBtn.MouseButton1Click:Connect(function() switchTab(waypointPage, waypointTabBtn) end)
@@ -287,7 +315,21 @@ local function createStandardBtn(parent, text, yPos)
     return btn
 end
 
--- KOMPONEN TOGGLE SWITCH MODERN (DENGAN PERSISTENT BACKGROUND STATE)
+local function createCategoryLabel(parent, text, yPosition)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -10, 0, 24)
+    lbl.Position = UDim2.fromOffset(5, yPosition)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.TextColor3 = YELLOW
+    lbl.TextSize = 11
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.ZIndex = 315
+    lbl.Parent = parent
+    return lbl
+end
+
 local function createToggleRow(parent, titleText, descText, yPosition, callback)
     local card = Instance.new("Frame")
     card.Size = UDim2.new(1, -10, 0, 52)
@@ -378,7 +420,7 @@ local function createToggleRow(parent, titleText, descText, yPosition, callback)
 end
 
 -- ============================================================
--- 1. WAYPOINT PAGE CONTENT
+-- 1. WAYPOINT PAGE CONTENT (ORIGINAL LAYOUT)
 -- ============================================================
 local nameInput = Instance.new("TextBox")
 nameInput.Size = UDim2.new(1, -10, 0, 38)
@@ -585,7 +627,7 @@ saveBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================================
--- 2. TRANSLATOR PAGE CONTENT
+-- 2. TRANSLATOR PAGE CONTENT (ORIGINAL LAYOUT)
 -- ============================================================
 local languages = {
     { Name = "Indonesian", Code = "id" },
@@ -853,12 +895,21 @@ local function translateText(text, fromLang, toLang)
         return game:HttpGet(url)
     end)
 
-    if success and response then
+    if success and response and response ~= "" then
         local decodeSuccess, result = pcall(function()
             return HttpService:JSONDecode(response)
         end)
-        if decodeSuccess and result and result[1] and result[1][1] then
-            return result[1][1][1]
+        
+        if decodeSuccess and type(result) == "table" and result[1] then
+            local fullText = ""
+            for _, seg in ipairs(result[1]) do
+                if type(seg) == "table" and seg[1] then
+                    fullText = fullText .. tostring(seg[1])
+                end
+            end
+            if fullText ~= "" then
+                return fullText
+            end
         end
     end
 
@@ -884,7 +935,7 @@ doTranslateBtn.MouseButton1Click:Connect(function()
 end)
 
 copyBtn.MouseButton1Click:Connect(function()
-    if setclipboard and resultBox.Text ~= "" and resultBox.Text ~= "Hasil terjemahan akan muncul di sini..." then
+    if setclipboard and resultBox.Text ~= "" and resultBox.Text ~= "Hasil terjemahan akan muncul di sini..." and resultBox.Text ~= "Gagal menerjemahkan teks!" then
         setclipboard(resultBox.Text)
         copyBtn.Text = "✅ Berhasil Disalin!"
         copyBtn.BackgroundColor3 = GREEN
@@ -897,11 +948,13 @@ end)
 transPage.CanvasSize = UDim2.new(0, 0, 0, 300)
 
 -- ============================================================
--- 3. FAST INTERACT PAGE CONTENT
+-- 3. FAST INTERACT & GROUPED ESP PAGE CONTENT (ORIGINAL LAYOUT)
 -- ============================================================
-local autoPromptConn = nil
 
-createToggleRow(interactPage, "⚡ Instant Prompt", "Interaksi tanpa waktu tahan (Hold = 0)", 5, function(isOn)
+createCategoryLabel(interactPage, "[ UTILITY & INTERACT ]", 5)
+
+local autoPromptConn = nil
+createToggleRow(interactPage, "⚡ Instant Prompt", "Interaksi tanpa waktu tahan (Hold = 0)", 30, function(isOn)
     if isOn then
         autoPromptConn = workspace.DescendantAdded:Connect(function(obj)
             if obj:IsA("ProximityPrompt") then obj.HoldDuration = 0 end
@@ -917,10 +970,217 @@ createToggleRow(interactPage, "⚡ Instant Prompt", "Interaksi tanpa waktu tahan
     end
 end)
 
-interactPage.CanvasSize = UDim2.new(0, 0, 0, 70)
+createCategoryLabel(interactPage, "[ PLAYER ESP & GLOW ]", 88)
+
+-- 1. NAME ESP
+local nameEspActive = false
+local nameEspConn = nil
+local nameBillboards = {}
+
+local function removeNameESP(target)
+    if nameBillboards[target] then
+        pcall(function() nameBillboards[target]:Destroy() end)
+        nameBillboards[target] = nil
+    end
+end
+
+local function addNameESP(target)
+    removeNameESP(target)
+    if target == Player then return end
+
+    local function setupChar(char)
+        removeNameESP(target)
+        local head = char:WaitForChild("Head", 3)
+        if not head then return end
+
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "STRN_NameESP"
+        billboard.Adornee = head
+        billboard.Size = UDim2.fromOffset(100, 30)
+        billboard.StudsOffset = Vector3.new(0, 1.8, 0)
+        billboard.AlwaysOnTop = true
+        billboard.ZIndexBehavior = Enum.ZIndexBehavior.Global
+        billboard.Parent = head
+
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 1, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = target.DisplayName or target.Name
+        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        nameLabel.TextSize = 11
+        nameLabel.Font = Enum.Font.GothamBold
+        nameLabel.TextStrokeTransparency = 0.1
+        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+        nameLabel.Parent = billboard
+
+        nameBillboards[target] = billboard
+    end
+
+    if target.Character then setupChar(target.Character) end
+    target.CharacterAdded:Connect(setupChar)
+end
+
+createToggleRow(interactPage, "👁️ Name ESP", "Menampilkan nama player lain", 113, function(isOn)
+    nameEspActive = isOn
+    if nameEspConn then nameEspConn:Disconnect(); nameEspConn = nil end
+
+    if isOn then
+        for _, p in ipairs(Players:GetPlayers()) do addNameESP(p) end
+        nameEspConn = Players.PlayerAdded:Connect(addNameESP)
+    else
+        for _, p in ipairs(Players:GetPlayers()) do removeNameESP(p) end
+    end
+end)
+
+-- 2. BOX & TRACER ESP
+local tracerEspActive = false
+local tracerConn = nil
+local activeTracers = {}
+
+local function removeTracer(target)
+    if activeTracers[target] then
+        pcall(function()
+            activeTracers[target].Box:Remove()
+            activeTracers[target].Line:Remove()
+        end)
+        activeTracers[target] = nil
+    end
+end
+
+createToggleRow(interactPage, "📦 Box & Tracer ESP", "Kotak & Garis dari tengah atas ke player", 170, function(isOn)
+    tracerEspActive = isOn
+    if tracerConn then tracerConn:Disconnect(); tracerConn = nil end
+
+    if not isOn then
+        for _, p in ipairs(Players:GetPlayers()) do removeTracer(p) end
+        return
+    end
+
+    tracerConn = RunService.RenderStepped:Connect(function()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= Player and p.Character then
+                local char = p.Character
+                local root = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                
+                if root and hum and hum.Health > 0 then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                    if onScreen then
+                        if not activeTracers[p] then
+                            local box = Drawing.new("Square")
+                            box.Visible = false
+                            box.Color = Color3.fromRGB(255, 50, 50)
+                            box.Thickness = 1.5
+                            box.Filled = false
+
+                            local line = Drawing.new("Line")
+                            line.Visible = false
+                            line.Color = Color3.fromRGB(255, 50, 50)
+                            line.Thickness = 1.5
+
+                            activeTracers[p] = { Box = box, Line = line }
+                        end
+
+                        local data = activeTracers[p]
+                        local head = char:FindFirstChild("Head")
+                        if head then
+                            local topScreen, topOnScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.8, 0))
+                            local botScreen, botOnScreen = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+
+                            if topOnScreen or botOnScreen then
+                                local height = math.abs(topScreen.Y - botScreen.Y)
+                                local width = height * 0.6
+                                
+                                data.Box.Size = Vector2.new(width, height)
+                                data.Box.Position = Vector2.new(topScreen.X - width / 2, topScreen.Y)
+                                data.Box.Visible = true
+
+                                data.Line.From = Vector2.new(Camera.ViewportSize.X / 2, 0)
+                                data.Line.To = Vector2.new(topScreen.X, topScreen.Y)
+                                data.Line.Visible = true
+                            else
+                                data.Box.Visible = false
+                                data.Line.Visible = false
+                            end
+                        else
+                            data.Box.Visible = false
+                            data.Line.Visible = false
+                        end
+                    else
+                        if activeTracers[p] then
+                            activeTracers[p].Box.Visible = false
+                            activeTracers[p].Line.Visible = false
+                        end
+                    end
+                else
+                    if activeTracers[p] then
+                        activeTracers[p].Box.Visible = false
+                        activeTracers[p].Line.Visible = false
+                    end
+                end
+            else
+                removeTracer(p)
+            end
+        end
+    end)
+end)
+
+-- 3. RED CHARACTER HIGHLIGHT GLOW
+local redGlowActive = false
+local redGlowConn = nil
+local charHighlights = {}
+
+local function removeRedGlow(target)
+    if charHighlights[target] then
+        pcall(function() charHighlights[target]:Destroy() end)
+        charHighlights[target] = nil
+    end
+end
+
+local function addRedGlow(target)
+    removeRedGlow(target)
+    if target == Player then return end
+
+    local function setupChar(char)
+        removeRedGlow(target)
+        local hl = Instance.new("Highlight")
+        hl.Name = "STRN_RedGlow"
+        hl.Adornee = char
+        hl.FillColor = Color3.fromRGB(255, 40, 40)
+        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+        hl.FillTransparency = 0.4
+        hl.OutlineTransparency = 0.2
+        hl.Parent = char
+
+        charHighlights[target] = hl
+    end
+
+    if target.Character then setupChar(target.Character) end
+    target.CharacterAdded:Connect(setupChar)
+end
+
+createToggleRow(interactPage, "🔴 Red Character Glow", "Mengubah warna avatar player lain menjadi merah", 227, function(isOn)
+    redGlowActive = isOn
+    if redGlowConn then redGlowConn:Disconnect(); redGlowConn = nil end
+
+    if isOn then
+        for _, p in ipairs(Players:GetPlayers()) do addRedGlow(p) end
+        redGlowConn = Players.PlayerAdded:Connect(addRedGlow)
+    else
+        for _, p in ipairs(Players:GetPlayers()) do removeRedGlow(p) end
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+    removeNameESP(p)
+    removeTracer(p)
+    removeRedGlow(p)
+end)
+
+interactPage.CanvasSize = UDim2.new(0, 0, 0, 290)
 
 -- ============================================================
--- 4. SERVER HOP PAGE CONTENT
+-- 4. SERVER HOP PAGE CONTENT (FIXED TEXT & LOGIC)
 -- ============================================================
 local hopTitle = Instance.new("TextLabel")
 hopTitle.Size = UDim2.new(1, -10, 0, 30)
@@ -969,7 +1229,7 @@ local inputLabel = Instance.new("TextLabel")
 inputLabel.Size = UDim2.new(1, -10, 0, 22)
 inputLabel.Position = UDim2.fromOffset(5, 95)
 inputLabel.BackgroundTransparency = 1
-inputLabel.Text = "Hop jika player LEBIH dari:"
+inputLabel.Text = "Masukkan jumlah player (Maksimal):"
 inputLabel.TextColor3 = TEXT
 inputLabel.TextSize = 14
 inputLabel.Font = Enum.Font.GothamMedium
@@ -982,11 +1242,13 @@ targetInput.Size = UDim2.new(1, -20, 0, 40)
 targetInput.Position = UDim2.fromOffset(10, 120)
 targetInput.BackgroundColor3 = BUTTON
 targetInput.BorderSizePixel = 0
-targetInput.Text = "5"
+targetInput.Text = ""
+targetInput.PlaceholderText = "Contoh: 5"
+targetInput.PlaceholderColor3 = SUBTEXT
 targetInput.TextColor3 = TEXT
 targetInput.TextSize = 16
 targetInput.Font = Enum.Font.GothamMedium
-targetInput.ClearTextOnFocus = true
+targetInput.ClearTextOnFocus = false
 targetInput.ZIndex = 315
 targetInput.Parent = hopPage
 
@@ -996,17 +1258,17 @@ targetInputCorner.Parent = targetInput
 
 targetInput.FocusLost:Connect(function()
     local num = tonumber(targetInput.Text)
-    if not num then
-        targetInput.Text = "5"
-    elseif num < 0 then
-        targetInput.Text = "0"
-    elseif num > game.Players.MaxPlayers then
-        targetInput.Text = tostring(game.Players.MaxPlayers)
+    if num then
+        if num < 0 then
+            targetInput.Text = "0"
+        elseif num > game.Players.MaxPlayers then
+            targetInput.Text = tostring(game.Players.MaxPlayers)
+        end
     end
 end)
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size =UDim2.new(1, -10, 0, 25)
+statusLabel.Size = UDim2.new(1, -10, 0, 25)
 statusLabel.Position = UDim2.fromOffset(5, 175)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = "Status: ✅ Siap"
@@ -1076,43 +1338,60 @@ local isAutoHoping = false
 local autoHopRunning = false
 
 local function HopServer()
-    local target = tonumber(targetInput.Text) or 5
+    local target = tonumber(targetInput.Text)
+    if not target then
+        statusLabel.Text = "❌ Masukkan angka jumlah player!"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        return
+    end
+    
     target = math.clamp(target, 0, game.Players.MaxPlayers)
     
-    statusLabel.Text = "🔍 Searching server..."
+    statusLabel.Text = "🔍 Mencari server..."
     statusLabel.TextColor3 = YELLOW
-    hopBtn.Text = "⏳ Searching..."
+    hopBtn.Text = "⏳ Mencari..."
     
     local success, result = pcall(function()
         return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
     end)
     
     if success and result and result.data then
-        local found = false
+        local validServers = {}
         for _, server in ipairs(result.data) do
             if server.id ~= JobId and server.playing <= target and server.playing < server.maxPlayers then
-                found = true
-                statusLabel.Text = "✅ Found! (" .. server.playing .. " players)"
-                statusLabel.TextColor3 = GREEN
-                hopBtn.Text = "🚀 Hop Sekali"
-                TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Player)
-                return
+                table.insert(validServers, server)
             end
         end
         
-        if not found then
-            statusLabel.Text = "❌ No server found with ≤ " .. target .. " players"
+        if #validServers > 0 then
+            math.randomseed(tick())
+            local chosenServer = validServers[math.random(1, #validServers)]
+            
+            statusLabel.Text = "✅ Ditemukan! (" .. chosenServer.playing .. " player)"
+            statusLabel.TextColor3 = GREEN
+            hopBtn.Text = "🚀 Hop Sekali"
+            TeleportService:TeleportToPlaceInstance(PlaceId, chosenServer.id, Player)
+            return
+        else
+            statusLabel.Text = "❌ Tidak ada server ≤ " .. target
             statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
             hopBtn.Text = "🚀 Hop Sekali"
         end
     else
-        statusLabel.Text = "❌ Failed to get server data!"
+        statusLabel.Text = "❌ Gagal memuat data server!"
         statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         hopBtn.Text = "🚀 Hop Sekali"
     end
 end
 
 local function startAutoHop()
+    local target = tonumber(targetInput.Text)
+    if not target then
+        statusLabel.Text = "❌ Masukkan angka jumlah player!"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        return
+    end
+
     if isAutoHoping then return end
     isAutoHoping = true
     autoHopRunning = true
@@ -1124,14 +1403,14 @@ local function startAutoHop()
 
     task.spawn(function()
         while autoHopRunning do
-            local target = tonumber(targetInput.Text) or 5
-            target = math.clamp(target, 0, game.Players.MaxPlayers)
+            local currentTarget = tonumber(targetInput.Text) or 5
+            currentTarget = math.clamp(currentTarget, 0, game.Players.MaxPlayers)
             
-            if #Players:GetPlayers() > target then
+            if #Players:GetPlayers() > currentTarget then
                 HopServer()
                 task.wait(2)
             else
-                statusLabel.Text = "🔄 Player count normal (" .. #Players:GetPlayers() .. " ≤ " .. target .. ")"
+                statusLabel.Text = "🔄 Normal (" .. #Players:GetPlayers() .. " ≤ " .. currentTarget .. ")"
                 statusLabel.TextColor3 = SUBTEXT
             end
             task.wait(3)
@@ -1162,7 +1441,7 @@ end)
 copyJobBtn.MouseButton1Click:Connect(function()
     if setclipboard then
         setclipboard("TeleportService:TeleportToPlaceInstance(" .. PlaceId .. ", '" .. JobId .. "', LocalPlayer)")
-        statusLabel.Text = "✅ Join Script Copied!"
+        statusLabel.Text = "✅ Join Script Disalin!"
         statusLabel.TextColor3 = GREEN
     end
 end)
@@ -1170,33 +1449,33 @@ end)
 hopPage.CanvasSize = UDim2.new(0, 0, 0, 400)
 
 -- ============================================================
--- 5. GRAPHICS (GFX) PAGE CONTENT (ANTI-LAG + LIMIT 30 FPS)
+-- 5. GRAPHICS (GFX) PAGE CONTENT (ORIGINAL LAYOUT)
 -- ============================================================
+
+createCategoryLabel(graphicsPage, "[ PERFORMANCE & OPTIMIZATION ]", 5)
+
 local originalMaterials = {}
-local originalShadows = Lighting.GlobalShadows
+local originalGlobalShadows = Lighting.GlobalShadows
 
 local function restoreGraphics()
-    Lighting.GlobalShadows = originalShadows
-    
+    Lighting.GlobalShadows = originalGlobalShadows
     for part, originalMat in pairs(originalMaterials) do
         if part and part.Parent then
             part.Material = originalMat
         end
     end
-    
     for _, v in ipairs(workspace:GetDescendants()) do
         if v:IsA("ParticleEmitter") or v:IsA("Trail") then
             v.Enabled = true
         end
     end
-    
     table.clear(originalMaterials)
 end
 
--- 1. LOW GRAPHICS TOGGLE
-createToggleRow(graphicsPage, "📉 Low Graphics", "Mode Anti-Lag (Material Smooth)", 5, function(isOn)
+-- 1. LOW GRAPHICS
+createToggleRow(graphicsPage, "📉 Low Graphics", "Mode Anti-Lag (Material Smooth)", 30, function(isOn)
     if isOn then
-        originalShadows = Lighting.GlobalShadows
+        originalGlobalShadows = Lighting.GlobalShadows
         Lighting.GlobalShadows = false
         
         for _, v in ipairs(workspace:GetDescendants()) do
@@ -1214,8 +1493,8 @@ createToggleRow(graphicsPage, "📉 Low Graphics", "Mode Anti-Lag (Material Smoo
     end
 end)
 
--- 2. LIMIT 30 FPS TOGGLE
-createToggleRow(graphicsPage, "🔋 Limit 30 FPS", "Penghemat baterai saat AFK", 65, function(isOn)
+-- 2. LIMIT 30 FPS
+createToggleRow(graphicsPage, "🔋 Limit 30 FPS", "Penghemat baterai saat AFK", 87, function(isOn)
     if isOn then
         if setfpscap then setfpscap(30) end
     else
@@ -1223,7 +1502,188 @@ createToggleRow(graphicsPage, "🔋 Limit 30 FPS", "Penghemat baterai saat AFK",
     end
 end)
 
-graphicsPage.CanvasSize = UDim2.new(0, 0, 0, 130)
+-- 3. FPS & PING DISPLAY HUD
+local fpsHudFrame = nil
+local fpsHudConn = nil
+
+createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan statistik FPS & Ping di layar", 144, function(isOn)
+    if isOn then
+        if not fpsHudFrame then
+            fpsHudFrame = Instance.new("Frame")
+            fpsHudFrame.Name = "STRN_FpsPingHUD"
+            fpsHudFrame.Size = UDim2.fromOffset(170, 26)
+            fpsHudFrame.Position = UDim2.new(1, -180, 0, 10)
+            fpsHudFrame.BackgroundColor3 = BG
+            fpsHudFrame.BackgroundTransparency = 0.35
+            fpsHudFrame.BorderSizePixel = 0
+            fpsHudFrame.ZIndex = 9999999
+            fpsHudFrame.Parent = gui
+
+            local hCorner = Instance.new("UICorner")
+            hCorner.CornerRadius = UDim.new(0, 8)
+            hCorner.Parent = fpsHudFrame
+
+            local hStroke = Instance.new("UIStroke")
+            hStroke.Color = Color3.fromRGB(80, 80, 90)
+            hStroke.Transparency = 0.5
+            hStroke.Thickness = 1
+            hStroke.Parent = fpsHudFrame
+
+            local statLabel = Instance.new("TextLabel")
+            statLabel.Name = "StatLabel"
+            statLabel.Size = UDim2.new(1, 0, 1, 0)
+            statLabel.BackgroundTransparency = 1
+            statLabel.Text = "FPS: -- | Ping: -- ms"
+            statLabel.TextColor3 = TEXT
+            statLabel.TextSize = 11
+            statLabel.Font = Enum.Font.GothamBold
+            statLabel.ZIndex = 9999999
+            statLabel.Parent = fpsHudFrame
+        end
+
+        fpsHudFrame.Visible = true
+
+        local lastUpdate = tick()
+        local frameCount = 0
+
+        fpsHudConn = RunService.RenderStepped:Connect(function()
+            frameCount = frameCount + 1
+            local now = tick()
+
+            if now - lastUpdate >= 0.5 then
+                local fps = math.floor(frameCount / (now - lastUpdate))
+                frameCount = 0
+                lastUpdate = now
+
+                local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+                
+                local statLbl = fpsHudFrame:FindFirstChild("StatLabel")
+                if statLbl then
+                    statLbl.Text = string.format("🟢 FPS: %d  |  📶 Ping: %dms", fps, ping)
+                    if fps < 30 then
+                        statLbl.TextColor3 = RED
+                    elseif fps < 50 then
+                        statLbl.TextColor3 = YELLOW
+                    else
+                        statLbl.TextColor3 = TEXT
+                    end
+                end
+            end
+        end)
+    else
+        if fpsHudConn then
+            fpsHudConn:Disconnect()
+            fpsHudConn = nil
+        end
+        if fpsHudFrame then
+            fpsHudFrame.Visible = false
+        end
+    end
+end)
+
+-- 4. DISABLE POST-EFFECTS
+local disabledEffectsList = {}
+
+createToggleRow(graphicsPage, "⚡ Disable Post-Effects", "Matikan Blur, Bloom, DOF & SunRays", 201, function(isOn)
+    if isOn then
+        table.clear(disabledEffectsList)
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v:IsA("PostEffect") or v:IsA("BlurEffect") or v:IsA("BloomEffect") or v:IsA("SunRaysEffect") or v:IsA("DepthOfFieldEffect") then
+                if v.Enabled then
+                    table.insert(disabledEffectsList, v)
+                    v.Enabled = false
+                end
+            end
+        end
+    else
+        for _, v in ipairs(disabledEffectsList) do
+            if v and v.Parent then
+                v.Enabled = true
+            end
+        end
+        table.clear(disabledEffectsList)
+    end
+end)
+
+createCategoryLabel(graphicsPage, "[ VISUAL & LIGHTING ]", 264)
+
+local defaultBrightness = Lighting.Brightness
+local defaultClockTime = Lighting.ClockTime
+local defaultFogEnd = Lighting.FogEnd
+local defaultFogStart = Lighting.FogStart
+local defaultGlobalShadows = Lighting.GlobalShadows
+
+-- 5. FULLBRIGHT
+local fullbrightConnection = nil
+
+createToggleRow(graphicsPage, "☀️ Fullbright", "Memaksa map menjadi terang benderang", 289, function(isOn)
+    if fullbrightConnection then
+        fullbrightConnection:Disconnect()
+        fullbrightConnection = nil
+    end
+
+    if isOn then
+        defaultBrightness = Lighting.Brightness
+        defaultClockTime = Lighting.ClockTime
+        defaultGlobalShadows = Lighting.GlobalShadows
+
+        fullbrightConnection = RunService.RenderStepped:Connect(function()
+            Lighting.Brightness = 2
+            Lighting.ClockTime = 14
+            Lighting.GlobalShadows = false
+            Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+        end)
+    else
+        pcall(function()
+            Lighting.Brightness = defaultBrightness
+            Lighting.ClockTime = defaultClockTime
+            Lighting.GlobalShadows = defaultGlobalShadows
+            Lighting.OutdoorAmbient = Color3.fromRGB(127, 127, 127)
+        end)
+    end
+end)
+
+-- 6. REMOVE FOG
+local removeFogConnection = nil
+local hiddenAtmospheres = {}
+
+createToggleRow(graphicsPage, "🌤️ Remove Fog", "Menghapus kabut & efek atmosphere", 346, function(isOn)
+    if removeFogConnection then
+        removeFogConnection:Disconnect()
+        removeFogConnection = nil
+    end
+
+    if isOn then
+        defaultFogStart = Lighting.FogStart
+        defaultFogEnd = Lighting.FogEnd
+
+        removeFogConnection = RunService.RenderStepped:Connect(function()
+            Lighting.FogStart = 0
+            Lighting.FogEnd = 9e9
+        end)
+
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v:IsA("Atmosphere") then
+                table.insert(hiddenAtmospheres, {Inst = v, Density = v.Density})
+                v.Density = 0
+            end
+        end
+    else
+        pcall(function()
+            Lighting.FogStart = defaultFogStart
+            Lighting.FogEnd = defaultFogEnd
+        end)
+
+        for _, item in ipairs(hiddenAtmospheres) do
+            if item.Inst and item.Inst.Parent then
+                item.Inst.Density = item.Density or 0.395
+            end
+        end
+        table.clear(hiddenAtmospheres)
+    end
+end)
+
+graphicsPage.CanvasSize = UDim2.new(0, 0, 0, 410)
 
 -- ============================================================
 -- DRAGGING LOGIC CONTROL (− BUTTON)
