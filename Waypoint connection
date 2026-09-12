@@ -1,5 +1,5 @@
 -- ============================================================
--- STRN BP — FIXED & READY TO EXECUTE
+-- STRN BP — FIXED & READY TO EXECUTE (TANPA TRANSLATE)
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -13,56 +13,12 @@ local TweenService = game:GetService("TweenService")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
+local Camera = workspace.CurrentCamera
 
-local GlobalEnv = _G
+local function getCharacter() return Player.Character or Player.CharacterAdded:Wait() end
+local function getRoot(c) c = c or getCharacter() return c:FindFirstChild("HumanoidRootPart") end
 
-pcall(function()
-    if type(getgenv) == "function" then
-        local env = getgenv()
-        if type(env) == "table" then
-            GlobalEnv = env
-        end
-    end
-end)
-
-local function getOptional(name)
-    local value
-
-    pcall(function()
-        value = rawget(GlobalEnv, name)
-    end)
-
-    if value ~= nil then
-        return value
-    end
-
-    pcall(function()
-        value = rawget(_G, name)
-    end)
-
-    return value
-end
-
-local writefileFn = getOptional("writefile")
-local readfileFn = getOptional("readfile")
-local isfileFn = getOptional("isfile")
-local setfpscapFn = getOptional("setfpscap")
-local setclipboardFn = getOptional("setclipboard")
-local DrawingLib = getOptional("Drawing")
-
-local function getCharacter()
-    return Player.Character
-end
-
-local function getRoot(character)
-    local c = character or getCharacter()
-    return c and c:FindFirstChild("HumanoidRootPart")
-end
-
-local function getCamera()
-    return workspace.CurrentCamera
-end
-
+-- PALET WARNA KHAS STRN
 local BG = Color3.fromRGB(20, 20, 25)
 local CARD_BG = Color3.fromRGB(30, 30, 38)
 local BUTTON = Color3.fromRGB(35, 35, 43)
@@ -74,97 +30,43 @@ local RED = Color3.fromRGB(220, 50, 50)
 local GREEN = Color3.fromRGB(70, 255, 70)
 local YELLOW = Color3.fromRGB(255, 200, 50)
 
-GlobalEnv.STRN_ToggleStates = GlobalEnv.STRN_ToggleStates or {}
-local ToggleStates = GlobalEnv.STRN_ToggleStates
+-- PENYIMPAN STATUS TOGGLE GLOBAL
+getgenv().STRN_ToggleStates = getgenv().STRN_ToggleStates or {}
+local ToggleStates = getgenv().STRN_ToggleStates
 
+-- STORAGE FILE WAYPOINT (PER-GAME VIA PLACEID)
 local PlaceId = game.PlaceId
 local JobId = game.JobId
 local WAYPOINT_FILE = "STRN_Waypoint_" .. tostring(PlaceId) .. ".json"
-
 local waypoints = {}
 
 local function saveWaypoints()
-    if type(writefileFn) ~= "function" then
-        return false
+    local success, json = pcall(function() return HttpService:JSONEncode(waypoints) end)
+    if success and json and writefile then
+        pcall(function() writefile(WAYPOINT_FILE, json) end)
     end
-
-    local success, json = pcall(function()
-        return HttpService:JSONEncode(waypoints)
-    end)
-
-    if not success or type(json) ~= "string" then
-        return false
-    end
-
-    local ok = pcall(function()
-        writefileFn(WAYPOINT_FILE, json)
-    end)
-
-    return ok
 end
 
 local function loadWaypoints()
-    waypoints = {}
-
-    if type(readfileFn) ~= "function" then
-        return false
-    end
-
-    if type(isfileFn) == "function" then
-        local exists = false
-
-        pcall(function()
-            exists = isfileFn(WAYPOINT_FILE)
-        end)
-
-        if not exists then
-            return false
+    if isfile and not isfile(WAYPOINT_FILE) then return end
+    if readfile then
+        local success, fileData = pcall(function() return readfile(WAYPOINT_FILE) end)
+        if success and fileData and fileData ~= "" then
+            local decodeSuccess, decoded = pcall(function() return HttpService:JSONDecode(fileData) end)
+            if decodeSuccess and type(decoded) == "table" then
+                waypoints = decoded
+            end
         end
     end
-
-    local success, fileData = pcall(function()
-        return readfileFn(WAYPOINT_FILE)
-    end)
-
-    if not success or type(fileData) ~= "string" or fileData == "" then
-        return false
-    end
-
-    local decodeSuccess, decoded = pcall(function()
-        return HttpService:JSONDecode(fileData)
-    end)
-
-    if not decodeSuccess or type(decoded) ~= "table" then
-        return false
-    end
-
-    for name, pos in pairs(decoded) do
-        if type(name) == "string"
-            and type(pos) == "table"
-            and tonumber(pos.X)
-            and tonumber(pos.Y)
-            and tonumber(pos.Z) then
-
-            waypoints[name] = {
-                X = tonumber(pos.X),
-                Y = tonumber(pos.Y),
-                Z = tonumber(pos.Z)
-            }
-        end
-    end
-
-    return true
 end
 
-GlobalEnv.STRN_PreviousJobId = GlobalEnv.STRN_PreviousJobId or nil
-GlobalEnv.STRN_LastPlaceId = GlobalEnv.STRN_LastPlaceId or PlaceId
+loadWaypoints()
 
+-- CLEANUP OLD GUI
 local oldGui = PlayerGui:FindFirstChild("STRN Bypass")
+if oldGui then oldGui:Destroy() end
 
-if oldGui then
-    oldGui:Destroy()
-end
-
+-- GUI CONTAINER
 local gui = Instance.new("ScreenGui")
 gui.Name = "STRN Bypass"
 gui.ResetOnSpawn = false
@@ -173,6 +75,7 @@ gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.DisplayOrder = 1000001
 gui.Parent = PlayerGui
 
+-- IKON POJOK KANAN ATAS (TRANSPARAN)
 local hiddenTriggerIcon = Instance.new("TextButton")
 hiddenTriggerIcon.Name = "HiddenTrigger"
 hiddenTriggerIcon.Size = UDim2.fromOffset(20, 20)
@@ -184,8 +87,8 @@ hiddenTriggerIcon.Selectable = false
 hiddenTriggerIcon.ZIndex = 999999
 hiddenTriggerIcon.Parent = gui
 
-local camera = getCamera()
-local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
+-- SINKRONISASI UKURAN DENGAN STRN HUB V2
+local viewport = Camera.ViewportSize
 local menuWidth = math.clamp(viewport.X * 0.82, 270, 330)
 local menuHeight = math.clamp(viewport.Y * 0.62, 360, 430)
 
@@ -198,12 +101,13 @@ if bpYPos < 10 then
     bpYPos = 10
 end
 
+-- MAIN FRAME
 local frame = Instance.new("Frame")
 frame.Name = "Main"
 frame.Size = UDim2.fromOffset(menuWidth, menuHeight)
 frame.Position = UDim2.new(0, hubXPos, 0, bpYPos)
 frame.BackgroundColor3 = BG
-frame.BackgroundTransparency = 0
+frame.BackgroundTransparency = 1
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.ZIndex = 300
@@ -215,10 +119,18 @@ frameCorner.Parent = frame
 
 local frameStroke = Instance.new("UIStroke")
 frameStroke.Color = Color3.fromRGB(80, 80, 90)
-frameStroke.Transparency = 0
+frameStroke.Transparency = 1
 frameStroke.Thickness = 1
 frameStroke.Parent = frame
 
+-- ANIMASI MUNCUL PERLAHAN
+task.spawn(function()
+    local tInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    TweenService:Create(frame, tInfo, {BackgroundTransparency = 0}):Play()
+    TweenService:Create(frameStroke, tInfo, {Transparency = 0}):Play()
+end)
+
+-- HEADER
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -90, 0, 42)
 title.Position = UDim2.fromOffset(14, 5)
@@ -231,6 +143,7 @@ title.TextXAlignment = Enum.TextXAlignment.Left
 title.ZIndex = 310
 title.Parent = frame
 
+-- TOMBOL MINIMIZE / DRAG (−)
 local dragButton = Instance.new("TextButton")
 dragButton.Size = UDim2.fromOffset(32, 32)
 dragButton.Position = UDim2.new(1, -84, 0, 10)
@@ -248,6 +161,7 @@ local dragCorner = Instance.new("UICorner")
 dragCorner.CornerRadius = UDim.new(0, 8)
 dragCorner.Parent = dragButton
 
+-- TOMBOL CLOSE (✕)
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.fromOffset(32, 32)
 closeButton.Position = UDim2.new(1, -42, 0, 10)
@@ -269,12 +183,11 @@ closeButton.MouseButton1Click:Connect(function()
     frame.Visible = false
 end)
 
-GlobalEnv.ToggleSTRNBypass = function()
-    if frame and frame.Parent then
-        frame.Visible = not frame.Visible
-    end
+getgenv().ToggleSTRNBypass = function()
+    frame.Visible = not frame.Visible
 end
 
+-- TAB SELECTOR (4 TAB - TRANSLATE DIHAPUS)
 local tabHolder = Instance.new("Frame")
 tabHolder.Size = UDim2.new(1, -20, 0, 35)
 tabHolder.Position = UDim2.fromOffset(10, 48)
@@ -282,6 +195,7 @@ tabHolder.BackgroundTransparency = 1
 tabHolder.ZIndex = 305
 tabHolder.Parent = frame
 
+-- ✅ PERUBAHAN: Tab width jadi 4, bukan 5
 local tabWidth = (menuWidth - 29) / 4
 
 local function createNavTab(text, posX)
@@ -305,6 +219,7 @@ local function createNavTab(text, posX)
     return btn
 end
 
+-- ✅ TAB: TRANSLATE DIHAPUS, 4 TAB TERSISA
 local waypointTabBtn = createNavTab("📍 Way", 0)
 local interactTabBtn = createNavTab("⚡ Act", tabWidth + 3)
 local hopTabBtn = createNavTab("🎯 Hop", (tabWidth + 3) * 2)
@@ -312,6 +227,7 @@ local graphicsTabBtn = createNavTab("🎨 Gfx", (tabWidth + 3) * 3)
 
 waypointTabBtn.BackgroundColor3 = ON_COLOR
 
+-- SCROLLING PAGES
 local function createPageFrame()
     local p = Instance.new("ScrollingFrame")
     p.Size = UDim2.new(1, -20, 1, -95)
@@ -324,7 +240,6 @@ local function createPageFrame()
     p.ScrollingDirection = Enum.ScrollingDirection.Y
     p.Active = true
     p.ClipsDescendants = true
-    p.CanvasSize = UDim2.new(0, 0, 0, 0)
     p.ZIndex = 305
     p.Parent = frame
     return p
@@ -339,66 +254,44 @@ interactPage.Visible = false
 hopPage.Visible = false
 graphicsPage.Visible = false
 
+-- FUNGSI PERGANTIAN TAB
 local isSwitchingTab = false
-
 local function switchTab(selectedPage, selectedBtn)
-    if isSwitchingTab or selectedPage.Visible then
-        return
-    end
-
+    if isSwitchingTab or selectedPage.Visible then return end
     isSwitchingTab = true
 
     waypointTabBtn.BackgroundColor3 = BUTTON
     interactTabBtn.BackgroundColor3 = BUTTON
     hopTabBtn.BackgroundColor3 = BUTTON
     graphicsTabBtn.BackgroundColor3 = BUTTON
+
     selectedBtn.BackgroundColor3 = ON_COLOR
 
-    local pages = {
-        waypointPage,
-        interactPage,
-        hopPage,
-        graphicsPage
-    }
-
+    -- ✅ TRANSLATE PAGE DIHAPUS DARI LIST
+    local pages = {waypointPage, interactPage, hopPage, graphicsPage}
     for _, p in ipairs(pages) do
         if p.Visible then
+            local tOut = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            TweenService:Create(p, tOut, {Position = UDim2.fromOffset(10, 105)}):Play()
+            task.wait(0.1)
             p.Visible = false
-            p.Position = UDim2.fromOffset(10, 105)
         end
     end
 
     selectedPage.Position = UDim2.fromOffset(10, 75)
     selectedPage.Visible = true
-
-    local tween = TweenService:Create(
-        selectedPage,
-        TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {Position = UDim2.fromOffset(10, 90)}
-    )
-
-    tween:Play()
-
-    tween.Completed:Connect(function()
+    local tIn = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tTween = TweenService:Create(selectedPage, tIn, {Position = UDim2.fromOffset(10, 90)})
+    tTween:Play()
+    tTween.Completed:Connect(function()
         isSwitchingTab = false
     end)
 end
 
-waypointTabBtn.MouseButton1Click:Connect(function()
-    switchTab(waypointPage, waypointTabBtn)
-end)
-
-interactTabBtn.MouseButton1Click:Connect(function()
-    switchTab(interactPage, interactTabBtn)
-end)
-
-hopTabBtn.MouseButton1Click:Connect(function()
-    switchTab(hopPage, hopTabBtn)
-end)
-
-graphicsTabBtn.MouseButton1Click:Connect(function()
-    switchTab(graphicsPage, graphicsTabBtn)
-end)
+waypointTabBtn.MouseButton1Click:Connect(function() switchTab(waypointPage, waypointTabBtn) end)
+interactTabBtn.MouseButton1Click:Connect(function() switchTab(interactPage, interactTabBtn) end)
+hopTabBtn.MouseButton1Click:Connect(function() switchTab(hopPage, hopTabBtn) end)
+graphicsTabBtn.MouseButton1Click:Connect(function() switchTab(graphicsPage, graphicsTabBtn) end)
 
 local function createStandardBtn(parent, text, yPos)
     local btn = Instance.new("TextButton")
@@ -410,7 +303,6 @@ local function createStandardBtn(parent, text, yPos)
     btn.TextColor3 = TEXT
     btn.TextSize = 12
     btn.Font = Enum.Font.GothamBold
-    btn.AutoButtonColor = false
     btn.ZIndex = 315
     btn.Parent = parent
 
@@ -479,7 +371,6 @@ local function createToggleRow(parent, titleText, descText, yPosition, callback)
     switchBtn.BorderSizePixel = 0
     switchBtn.TextSize = 10
     switchBtn.Font = Enum.Font.GothamBold
-    switchBtn.AutoButtonColor = false
     switchBtn.ZIndex = 317
     switchBtn.Parent = card
 
@@ -488,11 +379,9 @@ local function createToggleRow(parent, titleText, descText, yPosition, callback)
     switchCorner.Parent = switchBtn
 
     local stateKey = "Toggle_" .. titleText
-
     if ToggleStates[stateKey] == nil then
         ToggleStates[stateKey] = false
     end
-
     local state = ToggleStates[stateKey]
 
     local function refreshVisual(st)
@@ -510,10 +399,8 @@ local function createToggleRow(parent, titleText, descText, yPosition, callback)
     refreshVisual(state)
 
     if state and callback then
-        task.defer(function()
-            if switchBtn.Parent then
-                pcall(callback, true)
-            end
+        task.spawn(function()
+            callback(true)
         end)
     end
 
@@ -524,12 +411,15 @@ local function createToggleRow(parent, titleText, descText, yPosition, callback)
 
         if callback then
             task.spawn(function()
-                pcall(callback, state)
+                callback(state)
             end)
         end
     end)
 end
 
+-- ============================================================
+-- 1. WAYPOINT PAGE CONTENT (ORIGINAL LAYOUT)
+-- ============================================================
 local nameInput = Instance.new("TextBox")
 nameInput.Size = UDim2.new(1, -10, 0, 38)
 nameInput.Position = UDim2.fromOffset(5, 5)
@@ -581,30 +471,10 @@ wayLayout.Parent = wayList
 
 local function refreshWaypointList()
     for _, child in ipairs(wayList:GetChildren()) do
-        if child:IsA("Frame") then
-            child:Destroy()
-        end
+        if child:IsA("Frame") then child:Destroy() end
     end
-
-    local names = {}
 
     for name, pos in pairs(waypoints) do
-        if type(name) == "string"
-            and type(pos) == "table"
-            and tonumber(pos.X)
-            and tonumber(pos.Y)
-            and tonumber(pos.Z) then
-            table.insert(names, name)
-        end
-    end
-
-    table.sort(names, function(a, b)
-        return a:lower() < b:lower()
-    end)
-
-    for _, name in ipairs(names) do
-        local pos = waypoints[name]
-
         local row = Instance.new("Frame")
         row.Name = name
         row.Size = UDim2.new(1, 0, 0, 45)
@@ -639,7 +509,6 @@ local function refreshWaypointList()
         tpBtn.TextColor3 = TEXT
         tpBtn.TextSize = 11
         tpBtn.Font = Enum.Font.GothamBold
-        tpBtn.AutoButtonColor = false
         tpBtn.ZIndex = 318
         tpBtn.Parent = row
 
@@ -656,7 +525,6 @@ local function refreshWaypointList()
         editBtn.TextColor3 = TEXT
         editBtn.TextSize = 11
         editBtn.Font = Enum.Font.GothamBold
-        editBtn.AutoButtonColor = false
         editBtn.ZIndex = 318
         editBtn.Parent = row
 
@@ -673,32 +541,22 @@ local function refreshWaypointList()
         delBtn.TextColor3 = TEXT
         delBtn.TextSize = 11
         delBtn.Font = Enum.Font.GothamBold
-        delBtn.AutoButtonColor = false
         delBtn.ZIndex = 318
         delBtn.Parent = row
 
         local delCorner = Instance.new("UICorner")
         delCorner.CornerRadius = UDim.new(0, 6)
-        delCorner.Parent = row
+        delCorner.Parent = delBtn
 
         tpBtn.MouseButton1Click:Connect(function()
             local root = getRoot()
-
-            if root then
-                local x = tonumber(pos.X)
-                local y = tonumber(pos.Y)
-                local z = tonumber(pos.Z)
-
-                if x and y and z then
-                    root.CFrame = CFrame.new(x, y, z)
-                end
+            if root and pos then
+                root.CFrame = CFrame.new(pos.X, pos.Y, pos.Z)
             end
         end)
 
         editBtn.MouseButton1Click:Connect(function()
-            if row:FindFirstChild("RenameInput") then
-                return
-            end
+            if row:FindFirstChild("RenameInput") then return end
 
             local renameInput = Instance.new("TextBox")
             renameInput.Name = "RenameInput"
@@ -719,18 +577,15 @@ local function refreshWaypointList()
 
             label.Visible = false
 
-            renameInput.FocusLost:Connect(function()
+            renameInput.FocusLost:Connect(function(enterPressed)
                 local newName = renameInput.Text:gsub("^%s*(.-)%s*$", "%1")
-
                 if newName ~= "" and newName ~= name then
                     waypoints[newName] = waypoints[name]
                     waypoints[name] = nil
                     saveWaypoints()
                 end
-
                 refreshWaypointList()
             end)
-
             renameInput:CaptureFocus()
         end)
 
@@ -741,47 +596,27 @@ local function refreshWaypointList()
         end)
     end
 
-    task.defer(function()
-        if not wayList.Parent then
-            return
-        end
-
-        local contentHeight = wayLayout.AbsoluteContentSize.Y
-
-        if contentHeight < 50 then
-            contentHeight = 50
-        end
-
-        wayList.Size = UDim2.new(1, -10, 0, contentHeight)
-        waypointPage.CanvasSize = UDim2.new(0, 0, 0, 110 + contentHeight)
-    end)
+    task.wait()
+    local contentHeight = math.max(wayLayout.AbsoluteContentSize.Y, 50)
+    wayList.Size = UDim2.new(1, -10, 0, contentHeight)
+    waypointPage.CanvasSize = UDim2.new(0, 0, 0, 110 + contentHeight)
 end
 
 saveBtn.MouseButton1Click:Connect(function()
     local root = getRoot()
-
-    if not root then
-        return
-    end
+    if not root then return end
 
     local inputName = nameInput.Text
-
     if not inputName or inputName:gsub("%s+", "") == "" then
         local count = 0
-
-        for _ in pairs(waypoints) do
-            count = count + 1
-        end
-
+        for _ in pairs(waypoints) do count = count + 1 end
         inputName = "Posisi_" .. tostring(count + 1)
     end
 
-    inputName = inputName:gsub("^%s*(.-)%s*$", "%1")
-
     waypoints[inputName] = {
-        X = root.Position.X,
-        Y = root.Position.Y,
-        Z = root.Position.Z
+        X = root.CFrame.X,
+        Y = root.CFrame.Y,
+        Z = root.CFrame.Z
     }
 
     nameInput.Text = ""
@@ -789,115 +624,52 @@ saveBtn.MouseButton1Click:Connect(function()
     refreshWaypointList()
 end)
 
+-- ============================================================
+-- 2. FAST INTERACT & GROUPED ESP PAGE CONTENT (ORIGINAL LAYOUT)
+-- ============================================================
+-- ✅ TRANSLATE PAGE DIHAPUS TOTAL
+
 createCategoryLabel(interactPage, "[ UTILITY & INTERACT ]", 5)
 
 local autoPromptConn = nil
-local promptOriginalDurations = {}
-
-createToggleRow(
-    interactPage,
-    "⚡ Instant Prompt",
-    "Interaksi tanpa waktu tahan (Hold = 0)",
-    30,
-    function(isOn)
+createToggleRow(interactPage, "⚡ Instant Prompt", "Interaksi tanpa waktu tahan (Hold = 0)", 30, function(isOn)
+    if isOn then
+        autoPromptConn = workspace.DescendantAdded:Connect(function(obj)
+            if obj:IsA("ProximityPrompt") then obj.HoldDuration = 0 end
+        end)
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then obj.HoldDuration = 0 end
+        end
+    else
         if autoPromptConn then
             autoPromptConn:Disconnect()
             autoPromptConn = nil
         end
-
-        if isOn then
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("ProximityPrompt") then
-                    if promptOriginalDurations[obj] == nil then
-                        promptOriginalDurations[obj] = obj.HoldDuration
-                    end
-
-                    obj.HoldDuration = 0
-                end
-            end
-
-            autoPromptConn = workspace.DescendantAdded:Connect(function(obj)
-                if obj:IsA("ProximityPrompt") then
-                    if promptOriginalDurations[obj] == nil then
-                        promptOriginalDurations[obj] = obj.HoldDuration
-                    end
-
-                    obj.HoldDuration = 0
-                end
-            end)
-        else
-            for prompt, duration in pairs(promptOriginalDurations) do
-                if prompt and prompt.Parent then
-                    pcall(function()
-                        prompt.HoldDuration = duration
-                    end)
-                end
-            end
-
-            table.clear(promptOriginalDurations)
-        end
     end
-)
+end)
 
 createCategoryLabel(interactPage, "[ PLAYER ESP & GLOW ]", 88)
 
+-- 1. NAME ESP
 local nameEspActive = false
 local nameEspConn = nil
-local nameCharacterConns = {}
 local nameBillboards = {}
 
 local function removeNameESP(target)
-    if nameCharacterConns[target] then
-        pcall(function()
-            nameCharacterConns[target]:Disconnect()
-        end)
-
-        nameCharacterConns[target] = nil
-    end
-
     if nameBillboards[target] then
-        pcall(function()
-            nameBillboards[target]:Destroy()
-        end)
-
+        pcall(function() nameBillboards[target]:Destroy() end)
         nameBillboards[target] = nil
     end
 end
 
 local function addNameESP(target)
     removeNameESP(target)
-
-    if target == Player then
-        return
-    end
+    if target == Player then return end
 
     local function setupChar(char)
-        if not nameEspActive or not char then
-            return
-        end
-
-        local head = char:FindFirstChild("Head")
-
-        if not head then
-            task.spawn(function()
-                local found = char:WaitForChild("Head", 3)
-
-                if found
-                    and nameEspActive
-                    and target.Character == char then
-
-                    setupChar(char)
-                end
-            end)
-
-            return
-        end
-
-        if nameBillboards[target] then
-            pcall(function()
-                nameBillboards[target]:Destroy()
-            end)
-        end
+        removeNameESP(target)
+        local head = char:WaitForChild("Head", 3)
+        if not head then return end
 
         local billboard = Instance.new("BillboardGui")
         billboard.Name = "STRN_NameESP"
@@ -922,294 +694,133 @@ local function addNameESP(target)
         nameBillboards[target] = billboard
     end
 
-    if target.Character then
-        setupChar(target.Character)
-    end
-
-    nameCharacterConns[target] = target.CharacterAdded:Connect(setupChar)
+    if target.Character then setupChar(target.Character) end
+    target.CharacterAdded:Connect(setupChar)
 end
 
-createToggleRow(
-    interactPage,
-    "👁️ Name ESP",
-    "Menampilkan nama player lain",
-    113,
-    function(isOn)
-        nameEspActive = isOn
+createToggleRow(interactPage, "👁️ Name ESP", "Menampilkan nama player lain", 113, function(isOn)
+    nameEspActive = isOn
+    if nameEspConn then nameEspConn:Disconnect(); nameEspConn = nil end
 
-        if nameEspConn then
-            nameEspConn:Disconnect()
-            nameEspConn = nil
-        end
-
-        if isOn then
-            for _, p in ipairs(Players:GetPlayers()) do
-                addNameESP(p)
-            end
-
-            nameEspConn = Players.PlayerAdded:Connect(function(p)
-                if nameEspActive then
-                    addNameESP(p)
-                end
-            end)
-        else
-            for _, p in ipairs(Players:GetPlayers()) do
-                removeNameESP(p)
-            end
-        end
+    if isOn then
+        for _, p in ipairs(Players:GetPlayers()) do addNameESP(p) end
+        nameEspConn = Players.PlayerAdded:Connect(addNameESP)
+    else
+        for _, p in ipairs(Players:GetPlayers()) do removeNameESP(p) end
     end
-)
+end)
 
+-- 2. BOX & TRACER ESP
 local tracerEspActive = false
 local tracerConn = nil
 local activeTracers = {}
 
-local function removeDrawing(obj)
-    if not obj then
-        return
-    end
-
-    pcall(function()
-        if type(obj.Remove) == "function" then
-            obj:Remove()
-        elseif type(obj.Destroy) == "function" then
-            obj:Destroy()
-        end
-    end)
-end
-
 local function removeTracer(target)
-    local data = activeTracers[target]
-
-    if data then
-        removeDrawing(data.Box)
-        removeDrawing(data.Line)
+    if activeTracers[target] then
+        pcall(function()
+            activeTracers[target].Box:Remove()
+            activeTracers[target].Line:Remove()
+        end)
         activeTracers[target] = nil
     end
 end
 
-local function createTracerObjects()
-    if type(DrawingLib) ~= "table"
-        or type(DrawingLib.new) ~= "function" then
-        return nil
+createToggleRow(interactPage, "📦 Box & Tracer ESP", "Kotak & Garis dari tengah atas ke player", 170, function(isOn)
+    tracerEspActive = isOn
+    if tracerConn then tracerConn:Disconnect(); tracerConn = nil end
+
+    if not isOn then
+        for _, p in ipairs(Players:GetPlayers()) do removeTracer(p) end
+        return
     end
 
-    local success, box = pcall(function()
-        return DrawingLib.new("Square")
-    end)
+    tracerConn = RunService.RenderStepped:Connect(function()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= Player and p.Character then
+                local char = p.Character
+                local root = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                
+                if root and hum and hum.Health > 0 then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                    if onScreen then
+                        if not activeTracers[p] then
+                            local box = Drawing.new("Square")
+                            box.Visible = false
+                            box.Color = Color3.fromRGB(255, 50, 50)
+                            box.Thickness = 1.5
+                            box.Filled = false
 
-    if not success or not box then
-        return nil
-    end
+                            local line = Drawing.new("Line")
+                            line.Visible = false
+                            line.Color = Color3.fromRGB(255, 50, 50)
+                            line.Thickness = 1.5
 
-    local lineSuccess, line = pcall(function()
-        return DrawingLib.new("Line")
-    end)
-
-    if not lineSuccess or not line then
-        removeDrawing(box)
-        return nil
-    end
-
-    pcall(function()
-        box.Visible = false
-        box.Color = Color3.fromRGB(255, 50, 50)
-        box.Thickness = 1.5
-        box.Filled = false
-    end)
-
-    pcall(function()
-        line.Visible = false
-        line.Color = Color3.fromRGB(255, 50, 50)
-        line.Thickness = 1.5
-    end)
-
-    return {
-        Box = box,
-        Line = line
-    }
-end
-
-createToggleRow(
-    interactPage,
-    "📦 Box & Tracer ESP",
-    "Kotak & Garis dari tengah atas ke player",
-    170,
-    function(isOn)
-        tracerEspActive = isOn
-
-        if tracerConn then
-            tracerConn:Disconnect()
-            tracerConn = nil
-        end
-
-        if not isOn then
-            for _, p in ipairs(Players:GetPlayers()) do
-                removeTracer(p)
-            end
-
-            return
-        end
-
-        if type(DrawingLib) ~= "table"
-            or type(DrawingLib.new) ~= "function" then
-
-            tracerEspActive = false
-            ToggleStates["Toggle_📦 Box & Tracer ESP"] = false
-            return
-        end
-
-        tracerConn = RunService.RenderStepped:Connect(function()
-            if not tracerEspActive then
-                return
-            end
-
-            local currentCamera = getCamera()
-
-            if not currentCamera then
-                return
-            end
-
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= Player and p.Character then
-                    local char = p.Character
-                    local root = char:FindFirstChild("HumanoidRootPart")
-                    local hum = char:FindFirstChildOfClass("Humanoid")
-
-                    if root and hum and hum.Health > 0 then
-                        local screenPos, onScreen =
-                            currentCamera:WorldToViewportPoint(root.Position)
-
-                        if onScreen then
-                            if not activeTracers[p] then
-                                activeTracers[p] = createTracerObjects()
-                            end
-
-                            local data = activeTracers[p]
-
-                            if data then
-                                local head = char:FindFirstChild("Head")
-
-                                if head then
-                                    local topScreen, topOnScreen =
-                                        currentCamera:WorldToViewportPoint(
-                                            head.Position + Vector3.new(0, 0.8, 0)
-                                        )
-
-                                    local botScreen, botOnScreen =
-                                        currentCamera:WorldToViewportPoint(
-                                            root.Position - Vector3.new(0, 3, 0)
-                                        )
-
-                                    if topOnScreen or botOnScreen then
-                                        local height =
-                                            math.abs(topScreen.Y - botScreen.Y)
-
-                                        local width =
-                                            math.max(height * 0.6, 2)
-
-                                        pcall(function()
-                                            data.Box.Size =
-                                                Vector2.new(width, height)
-
-                                            data.Box.Position =
-                                                Vector2.new(
-                                                    topScreen.X - width / 2,
-                                                    topScreen.Y
-                                                )
-
-                                            data.Box.Visible = true
-
-                                            data.Line.From =
-                                                Vector2.new(
-                                                    currentCamera.ViewportSize.X / 2,
-                                                    0
-                                                )
-
-                                            data.Line.To =
-                                                Vector2.new(
-                                                    topScreen.X,
-                                                    topScreen.Y
-                                                )
-
-                                            data.Line.Visible = true
-                                        end)
-                                    else
-                                        pcall(function()
-                                            data.Box.Visible = false
-                                            data.Line.Visible = false
-                                        end)
-                                    end
-                                else
-                                    pcall(function()
-                                        data.Box.Visible = false
-                                        data.Line.Visible = false
-                                    end)
-                                end
-                            end
-                        elseif activeTracers[p] then
-                            pcall(function()
-                                activeTracers[p].Box.Visible = false
-                                activeTracers[p].Line.Visible = false
-                            end)
+                            activeTracers[p] = { Box = box, Line = line }
                         end
-                    elseif activeTracers[p] then
-                        pcall(function()
+
+                        local data = activeTracers[p]
+                        local head = char:FindFirstChild("Head")
+                        if head then
+                            local topScreen, topOnScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.8, 0))
+                            local botScreen, botOnScreen = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+
+                            if topOnScreen or botOnScreen then
+                                local height = math.abs(topScreen.Y - botScreen.Y)
+                                local width = height * 0.6
+                                
+                                data.Box.Size = Vector2.new(width, height)
+                                data.Box.Position = Vector2.new(topScreen.X - width / 2, topScreen.Y)
+                                data.Box.Visible = true
+
+                                data.Line.From = Vector2.new(Camera.ViewportSize.X / 2, 0)
+                                data.Line.To = Vector2.new(topScreen.X, topScreen.Y)
+                                data.Line.Visible = true
+                            else
+                                data.Box.Visible = false
+                                data.Line.Visible = false
+                            end
+                        else
+                            data.Box.Visible = false
+                            data.Line.Visible = false
+                        end
+                    else
+                        if activeTracers[p] then
                             activeTracers[p].Box.Visible = false
                             activeTracers[p].Line.Visible = false
-                        end)
+                        end
                     end
                 else
-                    removeTracer(p)
+                    if activeTracers[p] then
+                        activeTracers[p].Box.Visible = false
+                        activeTracers[p].Line.Visible = false
+                    end
                 end
+            else
+                removeTracer(p)
             end
-        end)
-    end
-)
+        end
+    end)
+end)
 
+-- 3. RED CHARACTER HIGHLIGHT GLOW
 local redGlowActive = false
 local redGlowConn = nil
-local glowCharacterConns = {}
 local charHighlights = {}
 
 local function removeRedGlow(target)
-    if glowCharacterConns[target] then
-        pcall(function()
-            glowCharacterConns[target]:Disconnect()
-        end)
-
-        glowCharacterConns[target] = nil
-    end
-
     if charHighlights[target] then
-        pcall(function()
-            charHighlights[target]:Destroy()
-        end)
-
+        pcall(function() charHighlights[target]:Destroy() end)
         charHighlights[target] = nil
     end
 end
 
 local function addRedGlow(target)
     removeRedGlow(target)
-
-    if target == Player then
-        return
-    end
+    if target == Player then return end
 
     local function setupChar(char)
-        if not redGlowActive or not char then
-            return
-        end
-
-        if charHighlights[target] then
-            pcall(function()
-                charHighlights[target]:Destroy()
-            end)
-
-            charHighlights[target] = nil
-        end
-
+        removeRedGlow(target)
         local hl = Instance.new("Highlight")
         hl.Name = "STRN_RedGlow"
         hl.Adornee = char
@@ -1222,43 +833,21 @@ local function addRedGlow(target)
         charHighlights[target] = hl
     end
 
-    if target.Character then
-        setupChar(target.Character)
-    end
-
-    glowCharacterConns[target] = target.CharacterAdded:Connect(setupChar)
+    if target.Character then setupChar(target.Character) end
+    target.CharacterAdded:Connect(setupChar)
 end
 
-createToggleRow(
-    interactPage,
-    "🔴 Red Character Glow",
-    "Mengubah warna avatar player lain menjadi merah",
-    227,
-    function(isOn)
-        redGlowActive = isOn
+createToggleRow(interactPage, "🔴 Red Character Glow", "Mengubah warna avatar player lain menjadi merah", 227, function(isOn)
+    redGlowActive = isOn
+    if redGlowConn then redGlowConn:Disconnect(); redGlowConn = nil end
 
-        if redGlowConn then
-            redGlowConn:Disconnect()
-            redGlowConn = nil
-        end
-
-        if isOn then
-            for _, p in ipairs(Players:GetPlayers()) do
-                addRedGlow(p)
-            end
-
-            redGlowConn = Players.PlayerAdded:Connect(function(p)
-                if redGlowActive then
-                    addRedGlow(p)
-                end
-            end)
-        else
-            for _, p in ipairs(Players:GetPlayers()) do
-                removeRedGlow(p)
-            end
-        end
+    if isOn then
+        for _, p in ipairs(Players:GetPlayers()) do addRedGlow(p) end
+        redGlowConn = Players.PlayerAdded:Connect(addRedGlow)
+    else
+        for _, p in ipairs(Players:GetPlayers()) do removeRedGlow(p) end
     end
-)
+end)
 
 Players.PlayerRemoving:Connect(function(p)
     removeNameESP(p)
@@ -1268,6 +857,9 @@ end)
 
 interactPage.CanvasSize = UDim2.new(0, 0, 0, 290)
 
+-- ============================================================
+-- 3. SERVER HOP PAGE CONTENT (FIXED TEXT & LOGIC)
+-- ============================================================
 local hopTitle = Instance.new("TextLabel")
 hopTitle.Size = UDim2.new(1, -10, 0, 30)
 hopTitle.Position = UDim2.fromOffset(5, 0)
@@ -1284,7 +876,7 @@ local maxPlayerLabel = Instance.new("TextLabel")
 maxPlayerLabel.Size = UDim2.new(1, -10, 0, 25)
 maxPlayerLabel.Position = UDim2.fromOffset(5, 35)
 maxPlayerLabel.BackgroundTransparency = 1
-maxPlayerLabel.Text = "Max Players: " .. Players.MaxPlayers
+maxPlayerLabel.Text = "Max Players: " .. game.Players.MaxPlayers
 maxPlayerLabel.TextColor3 = SUBTEXT
 maxPlayerLabel.TextSize = 14
 maxPlayerLabel.Font = Enum.Font.GothamMedium
@@ -1304,15 +896,12 @@ currentPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
 currentPlayerLabel.ZIndex = 315
 currentPlayerLabel.Parent = hopPage
 
-local function updatePlayerCount()
-    if currentPlayerLabel and currentPlayerLabel.Parent then
-        currentPlayerLabel.Text =
-            "Current Players: " .. #Players:GetPlayers()
-    end
-end
-
-Players.PlayerAdded:Connect(updatePlayerCount)
-Players.PlayerRemoving:Connect(updatePlayerCount)
+Players.PlayerAdded:Connect(function()
+    currentPlayerLabel.Text = "Current Players: " .. #Players:GetPlayers()
+end)
+Players.PlayerRemoving:Connect(function()
+    currentPlayerLabel.Text = "Current Players: " .. #Players:GetPlayers()
+end)
 
 local inputLabel = Instance.new("TextLabel")
 inputLabel.Size = UDim2.new(1, -10, 0, 22)
@@ -1347,10 +936,12 @@ targetInputCorner.Parent = targetInput
 
 targetInput.FocusLost:Connect(function()
     local num = tonumber(targetInput.Text)
-
     if num then
-        num = math.clamp(math.floor(num), 0, Players.MaxPlayers)
-        targetInput.Text = tostring(num)
+        if num < 0 then
+            targetInput.Text = "0"
+        elseif num > game.Players.MaxPlayers then
+            targetInput.Text = tostring(game.Players.MaxPlayers)
+        end
     end
 end)
 
@@ -1418,259 +1009,88 @@ local stopAutoCorner = Instance.new("UICorner")
 stopAutoCorner.CornerRadius = UDim.new(0, 8)
 stopAutoCorner.Parent = stopAutoBtn
 
-local rejoinBtn = createStandardBtn(
-    hopPage,
-    "🔄 Rejoin Server Saat Ini",
-    305
-)
-
-local previousServerBtn = createStandardBtn(
-    hopPage,
-    "↩️ Rejoin Server Sebelumnya",
-    350
-)
-
-local copyJobBtn = createStandardBtn(
-    hopPage,
-    "📋 Copy JobID / Join Script",
-    395
-)
+local rejoinBtn = createStandardBtn(hopPage, "🔄 Rejoin Server Saat Ini", 305)
+local copyJobBtn = createStandardBtn(hopPage, "📋 Copy JobID / Join Script", 350)
 
 local isAutoHoping = false
 local autoHopRunning = false
-local hopInProgress = false
 
-local function fetchServers()
-    local servers = {}
-    local cursor = nil
-    local pagesChecked = 0
-
-    repeat
-        pagesChecked = pagesChecked + 1
-
-        local url =
-            "https://games.roblox.com/v1/games/" ..
-            tostring(PlaceId) ..
-            "/servers/Public?sortOrder=Asc&limit=100"
-
-        if cursor and cursor ~= "" then
-            url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
-        end
-
-        local ok, response = pcall(function()
-            local httpGet = getOptional("httpget")
-
-            if type(httpGet) == "function" then
-                return httpGet(url)
-            end
-
-            if type(game.HttpGet) == "function" then
-                return game:HttpGet(url)
-            end
-
-            return nil
-        end)
-
-        if not ok or type(response) ~= "string" then
-            break
-        end
-
-        local decodeOk, result = pcall(function()
-            return HttpService:JSONDecode(response)
-        end)
-
-        if not decodeOk
-            or type(result) ~= "table"
-            or type(result.data) ~= "table" then
-            break
-        end
-
+local function HopServer()
+    local target = tonumber(targetInput.Text)
+    if not target then
+        statusLabel.Text = "❌ Masukkan angka jumlah player!"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        return
+    end
+    
+    target = math.clamp(target, 0, game.Players.MaxPlayers)
+    
+    statusLabel.Text = "🔍 Mencari server..."
+    statusLabel.TextColor3 = YELLOW
+    hopBtn.Text = "⏳ Mencari..."
+    
+    local success, result = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+    end)
+    
+    if success and result and result.data then
+        local validServers = {}
         for _, server in ipairs(result.data) do
-            if type(server) == "table"
-                and server.id
-                and server.playing ~= nil
-                and server.maxPlayers ~= nil then
-
-                table.insert(servers, server)
-            end
-        end
-
-        cursor = result.nextPageCursor
-    until not cursor or cursor == "" or pagesChecked >= 5
-
-    return servers
-end
-
-local function chooseServer(servers, target)
-    local emptyServers = {}
-    local validServers = {}
-
-    for _, server in ipairs(servers) do
-        if server.id ~= JobId
-            and server.playing < server.maxPlayers then
-
-            if server.playing == 0 then
-                table.insert(emptyServers, server)
-            end
-
-            if server.playing <= target then
+            if server.id ~= JobId and server.playing <= target and server.playing < server.maxPlayers then
                 table.insert(validServers, server)
             end
         end
-    end
-
-    if #emptyServers > 0 then
-        return emptyServers[math.random(1, #emptyServers)], true
-    end
-
-    if #validServers > 0 then
-        return validServers[math.random(1, #validServers)], false
-    end
-
-    return nil, false
-end
-
-local function teleportToServer(placeId, serverId)
-    local ok = pcall(function()
-        TeleportService:TeleportToPlaceInstance(
-            placeId,
-            serverId,
-            Player
-        )
-    end)
-
-    if not ok then
-        statusLabel.Text = "❌ Teleport gagal"
-        statusLabel.TextColor3 = RED
-        hopBtn.Text = "🚀 Hop Sekali"
-        hopInProgress = false
-        return false
-    end
-
-    return true
-end
-
-local function HopServer()
-    if hopInProgress then
-        return
-    end
-
-    local target = tonumber(targetInput.Text)
-
-    if not target then
-        statusLabel.Text = "❌ Masukkan angka jumlah player!"
-        statusLabel.TextColor3 = RED
-        return
-    end
-
-    target = math.clamp(
-        math.floor(target),
-        0,
-        Players.MaxPlayers
-    )
-
-    hopInProgress = true
-
-    statusLabel.Text = "🔍 Mencari server kosong..."
-    statusLabel.TextColor3 = YELLOW
-    hopBtn.Text = "⏳ Mencari..."
-
-    task.spawn(function()
-        local servers = fetchServers()
-
-        if #servers == 0 then
-            statusLabel.Text = "❌ Gagal memuat daftar server!"
-            statusLabel.TextColor3 = RED
+        
+        if #validServers > 0 then
+            math.randomseed(tick())
+            local chosenServer = validServers[math.random(1, #validServers)]
+            
+            statusLabel.Text = "✅ Ditemukan! (" .. chosenServer.playing .. " player)"
+            statusLabel.TextColor3 = GREEN
             hopBtn.Text = "🚀 Hop Sekali"
-            hopInProgress = false
+            TeleportService:TeleportToPlaceInstance(PlaceId, chosenServer.id, Player)
             return
-        end
-
-        local chosenServer, isEmpty =
-            chooseServer(servers, target)
-
-        if not chosenServer then
-            statusLabel.Text =
-                "❌ Tidak ada server ≤ " ..
-                tostring(target)
-
-            statusLabel.TextColor3 = RED
-            hopBtn.Text = "🚀 Hop Sekali"
-            hopInProgress = false
-            return
-        end
-
-        GlobalEnv.STRN_PreviousJobId = JobId
-        GlobalEnv.STRN_LastPlaceId = PlaceId
-
-        if isEmpty then
-            statusLabel.Text =
-                "✅ Server 0 player ditemukan!"
         else
-            statusLabel.Text =
-                "✅ Server " ..
-                tostring(chosenServer.playing) ..
-                " player ditemukan!"
+            statusLabel.Text = "❌ Tidak ada server ≤ " .. target
+            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            hopBtn.Text = "🚀 Hop Sekali"
         end
-
-        statusLabel.TextColor3 = GREEN
+    else
+        statusLabel.Text = "❌ Gagal memuat data server!"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         hopBtn.Text = "🚀 Hop Sekali"
-
-        teleportToServer(
-            PlaceId,
-            chosenServer.id
-        )
-    end)
+    end
 end
 
 local function startAutoHop()
     local target = tonumber(targetInput.Text)
-
     if not target then
         statusLabel.Text = "❌ Masukkan angka jumlah player!"
-        statusLabel.TextColor3 = RED
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         return
     end
 
-    if isAutoHoping then
-        return
-    end
-
+    if isAutoHoping then return end
     isAutoHoping = true
     autoHopRunning = true
-
     autoHopBtn.Text = "🔁 Auto: ON"
     autoHopBtn.BackgroundColor3 = ON_COLOR
     stopAutoBtn.Visible = true
-
     statusLabel.Text = "🔄 Auto Hop aktif..."
     statusLabel.TextColor3 = YELLOW
 
     task.spawn(function()
         while autoHopRunning do
-            local currentTarget =
-                tonumber(targetInput.Text) or 5
-
-            currentTarget = math.clamp(
-                math.floor(currentTarget),
-                0,
-                Players.MaxPlayers
-            )
-
+            local currentTarget = tonumber(targetInput.Text) or 5
+            currentTarget = math.clamp(currentTarget, 0, game.Players.MaxPlayers)
+            
             if #Players:GetPlayers() > currentTarget then
                 HopServer()
-                task.wait(5)
+                task.wait(2)
             else
-                statusLabel.Text =
-                    "🔄 Normal (" ..
-                    #Players:GetPlayers() ..
-                    " ≤ " ..
-                    currentTarget ..
-                    ")"
-
+                statusLabel.Text = "🔄 Normal (" .. #Players:GetPlayers() .. " ≤ " .. currentTarget .. ")"
                 statusLabel.TextColor3 = SUBTEXT
             end
-
             task.wait(3)
         end
     end)
@@ -1679,292 +1099,174 @@ end
 local function stopAutoHop()
     autoHopRunning = false
     isAutoHoping = false
-    hopInProgress = false
-
     autoHopBtn.Text = "🔁 Auto: OFF"
     autoHopBtn.BackgroundColor3 = BUTTON
     stopAutoBtn.Visible = false
-
     statusLabel.Text = "Status: ✅ Siap"
     statusLabel.TextColor3 = SUBTEXT
 end
 
 hopBtn.MouseButton1Click:Connect(HopServer)
-
 autoHopBtn.MouseButton1Click:Connect(function()
-    if isAutoHoping then
-        stopAutoHop()
-    else
-        startAutoHop()
-    end
+    if isAutoHoping then stopAutoHop() else startAutoHop() end
 end)
-
 stopAutoBtn.MouseButton1Click:Connect(stopAutoHop)
 
 rejoinBtn.MouseButton1Click:Connect(function()
-    teleportToServer(PlaceId, JobId)
-end)
-
-previousServerBtn.MouseButton1Click:Connect(function()
-    local previousJob = GlobalEnv.STRN_PreviousJobId
-    local previousPlace = GlobalEnv.STRN_LastPlaceId
-
-    if not previousJob
-        or previousJob == ""
-        or previousJob == JobId then
-
-        statusLabel.Text =
-            "❌ Server sebelumnya belum tersedia."
-
-        statusLabel.TextColor3 = RED
-        return
-    end
-
-    statusLabel.Text =
-        "↩️ Kembali ke server sebelumnya..."
-
-    statusLabel.TextColor3 = YELLOW
-
-    teleportToServer(
-        previousPlace or PlaceId,
-        previousJob
-    )
+    TeleportService:TeleportToPlaceInstance(PlaceId, JobId, Player)
 end)
 
 copyJobBtn.MouseButton1Click:Connect(function()
-    if type(setclipboardFn) ~= "function" then
-        statusLabel.Text = "❌ Clipboard tidak tersedia."
-        statusLabel.TextColor3 = RED
-        return
-    end
-
-    local scriptText =
-        "TeleportService:TeleportToPlaceInstance(" ..
-        tostring(PlaceId) ..
-        ", '" ..
-        tostring(JobId) ..
-        "', LocalPlayer)"
-
-    local ok = pcall(function()
-        setclipboardFn(scriptText)
-    end)
-
-    if ok then
+    if setclipboard then
+        setclipboard("TeleportService:TeleportToPlaceInstance(" .. PlaceId .. ", '" .. JobId .. "', LocalPlayer)")
         statusLabel.Text = "✅ Join Script Disalin!"
         statusLabel.TextColor3 = GREEN
-    else
-        statusLabel.Text = "❌ Gagal menyalin."
-        statusLabel.TextColor3 = RED
     end
 end)
 
-hopPage.CanvasSize = UDim2.new(0, 0, 0, 445)
+hopPage.CanvasSize = UDim2.new(0, 0, 0, 400)
 
-createCategoryLabel(
-    graphicsPage,
-    "[ PERFORMANCE & OPTIMIZATION ]",
-    5
-)
+-- ============================================================
+-- 4. GRAPHICS (GFX) PAGE CONTENT
+-- ============================================================
+-- ✅ FPS & PING DIPERBAIKI: FPS dan Ping DIPISAH jadi 2 label
+
+createCategoryLabel(graphicsPage, "[ PERFORMANCE & OPTIMIZATION ]", 5)
 
 local originalMaterials = {}
-local originalParticleStates = {}
 local originalGlobalShadows = Lighting.GlobalShadows
 
 local function restoreGraphics()
     Lighting.GlobalShadows = originalGlobalShadows
-
     for part, originalMat in pairs(originalMaterials) do
         if part and part.Parent then
-            pcall(function()
-                part.Material = originalMat
-            end)
+            part.Material = originalMat
         end
     end
-
-    for obj, originalState in pairs(originalParticleStates) do
-        if obj and obj.Parent then
-            pcall(function()
-                obj.Enabled = originalState
-            end)
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+            v.Enabled = true
         end
     end
-
     table.clear(originalMaterials)
-    table.clear(originalParticleStates)
 end
 
-createToggleRow(
-    graphicsPage,
-    "📉 Low Graphics",
-    "Mode Anti-Lag (Material SmoothPlastic)",
-    30,
-    function(isOn)
-        if isOn then
-            originalGlobalShadows = Lighting.GlobalShadows
-            Lighting.GlobalShadows = false
-
-            for _, v in ipairs(workspace:GetDescendants()) do
-                if v:IsA("BasePart") then
-                    if originalMaterials[v] == nil then
-                        originalMaterials[v] = v.Material
-                    end
-
-                    pcall(function()
-                        v.Material = Enum.Material.SmoothPlastic
-                    end)
-                elseif v:IsA("ParticleEmitter")
-                    or v:IsA("Trail") then
-
-                    if originalParticleStates[v] == nil then
-                        originalParticleStates[v] = v.Enabled
-                    end
-
-                    pcall(function()
-                        v.Enabled = false
-                    end)
+-- 1. LOW GRAPHICS
+createToggleRow(graphicsPage, "📉 Low Graphics", "Mode Anti-Lag (Material Smooth)", 30, function(isOn)
+    if isOn then
+        originalGlobalShadows = Lighting.GlobalShadows
+        Lighting.GlobalShadows = false
+        
+        for _, v in ipairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") then
+                if not originalMaterials[v] then
+                    originalMaterials[v] = v.Material
                 end
+                v.Material = Enum.Material.SmoothPlastic
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Enabled = false
             end
-        else
-            restoreGraphics()
         end
+    else
+        restoreGraphics()
     end
-)
+end)
 
-createToggleRow(
-    graphicsPage,
-    "🔋 Limit 30 FPS",
-    "Penghemat baterai saat AFK",
-    87,
-    function(isOn)
-        if type(setfpscapFn) ~= "function" then
-            return
-        end
-
-        pcall(function()
-            setfpscapFn(isOn and 30 or 240)
-        end)
+-- 2. LIMIT 30 FPS
+createToggleRow(graphicsPage, "🔋 Limit 30 FPS", "Penghemat baterai saat AFK", 87, function(isOn)
+    if isOn then
+        if setfpscap then setfpscap(30) end
+    else
+        if setfpscap then setfpscap(240) end
     end
-)
+end)
 
+-- 3. FPS & PING DISPLAY HUD (FIXED - DIPISAH)
 local fpsHudFrame = nil
 local fpsHudConn = nil
 
-local function createFpsHud()
-    if fpsHudFrame and fpsHudFrame.Parent then
-        return
-    end
+createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan statistik FPS & Ping di layar", 144, function(isOn)
+    if isOn then
+        -- ✅ FIX: Buat frame dengan 2 label terpisah (FPS & Ping)
+        if not fpsHudFrame then
+            fpsHudFrame = Instance.new("Frame")
+            fpsHudFrame.Name = "STRN_FpsPingHUD"
+            fpsHudFrame.Size = UDim2.fromOffset(190, 30)
+            fpsHudFrame.Position = UDim2.new(1, -200, 0, 10)
+            fpsHudFrame.BackgroundColor3 = BG
+            fpsHudFrame.BackgroundTransparency = 0.35
+            fpsHudFrame.BorderSizePixel = 0
+            fpsHudFrame.ZIndex = 9999999
+            fpsHudFrame.Parent = gui
 
-    fpsHudFrame = Instance.new("Frame")
-    fpsHudFrame.Name = "STRN_FpsPingHUD"
-    fpsHudFrame.Size = UDim2.fromOffset(190, 30)
-    fpsHudFrame.Position = UDim2.new(1, -200, 0, 10)
-    fpsHudFrame.BackgroundColor3 = BG
-    fpsHudFrame.BackgroundTransparency = 0.35
-    fpsHudFrame.BorderSizePixel = 0
-    fpsHudFrame.ZIndex = 9999999
-    fpsHudFrame.Parent = gui
+            local hCorner = Instance.new("UICorner")
+            hCorner.CornerRadius = UDim.new(0, 8)
+            hCorner.Parent = fpsHudFrame
 
-    local hCorner = Instance.new("UICorner")
-    hCorner.CornerRadius = UDim.new(0, 8)
-    hCorner.Parent = fpsHudFrame
+            local hStroke = Instance.new("UIStroke")
+            hStroke.Color = Color3.fromRGB(80, 80, 90)
+            hStroke.Transparency = 0.5
+            hStroke.Thickness = 1
+            hStroke.Parent = fpsHudFrame
 
-    local hStroke = Instance.new("UIStroke")
-    hStroke.Color = Color3.fromRGB(80, 80, 90)
-    hStroke.Transparency = 0.5
-    hStroke.Thickness = 1
-    hStroke.Parent = fpsHudFrame
+            -- ✅ FPS Label (kiri)
+            local fpsLabel = Instance.new("TextLabel")
+            fpsLabel.Name = "FPSLabel"
+            fpsLabel.Size = UDim2.new(0.5, -1, 1, 0)
+            fpsLabel.BackgroundTransparency = 1
+            fpsLabel.Text = "FPS: --"
+            fpsLabel.TextColor3 = GREEN
+            fpsLabel.TextSize = 11
+            fpsLabel.Font = Enum.Font.GothamBold
+            fpsLabel.TextXAlignment = Enum.TextXAlignment.Center
+            fpsLabel.ZIndex = 9999999
+            fpsLabel.Parent = fpsHudFrame
 
-    local fpsLabel = Instance.new("TextLabel")
-    fpsLabel.Name = "FPSLabel"
-    fpsLabel.Size = UDim2.new(0.5, -1, 1, 0)
-    fpsLabel.BackgroundTransparency = 1
-    fpsLabel.Text = "FPS: --"
-    fpsLabel.TextColor3 = GREEN
-    fpsLabel.TextSize = 11
-    fpsLabel.Font = Enum.Font.GothamBold
-    fpsLabel.TextXAlignment = Enum.TextXAlignment.Center
-    fpsLabel.ZIndex = 9999999
-    fpsLabel.Parent = fpsHudFrame
-
-    local pingLabel = Instance.new("TextLabel")
-    pingLabel.Name = "PingLabel"
-    pingLabel.Size = UDim2.new(0.5, -1, 1, 0)
-    pingLabel.Position = UDim2.new(0.5, 1, 0, 0)
-    pingLabel.BackgroundTransparency = 1
-    pingLabel.Text = "Ping: -- ms"
-    pingLabel.TextColor3 = GREEN
-    pingLabel.TextSize = 11
-    pingLabel.Font = Enum.Font.GothamBold
-    pingLabel.TextXAlignment = Enum.TextXAlignment.Center
-    pingLabel.ZIndex = 9999999
-    pingLabel.Parent = fpsHudFrame
-end
-
-createToggleRow(
-    graphicsPage,
-    "📊 FPS & Ping Display",
-    "Tampilkan statistik FPS & Ping di layar",
-    144,
-    function(isOn)
-        if fpsHudConn then
-            fpsHudConn:Disconnect()
-            fpsHudConn = nil
+            -- ✅ Ping Label (kanan)
+            local pingLabel = Instance.new("TextLabel")
+            pingLabel.Name = "PingLabel"
+            pingLabel.Size = UDim2.new(0.5, -1, 1, 0)
+            pingLabel.Position = UDim2.new(0.5, 1, 0, 0)
+            pingLabel.BackgroundTransparency = 1
+            pingLabel.Text = "Ping: -- ms"
+            pingLabel.TextColor3 = GREEN
+            pingLabel.TextSize = 11
+            pingLabel.Font = Enum.Font.GothamBold
+            pingLabel.TextXAlignment = Enum.TextXAlignment.Center
+            pingLabel.ZIndex = 9999999
+            pingLabel.Parent = fpsHudFrame
         end
 
-        if not isOn then
-            if fpsHudFrame then
-                fpsHudFrame.Visible = false
-            end
-
-            return
-        end
-
-        createFpsHud()
         fpsHudFrame.Visible = true
 
         local lastUpdate = tick()
         local frameCount = 0
 
         fpsHudConn = RunService.RenderStepped:Connect(function()
-            if not fpsHudFrame
-                or not fpsHudFrame.Parent
-                or not fpsHudFrame.Visible then
-                return
-            end
-
             frameCount = frameCount + 1
-
             local now = tick()
 
             if now - lastUpdate >= 0.5 then
                 local elapsed = now - lastUpdate
                 local fps = math.floor(frameCount / elapsed)
-
                 frameCount = 0
                 lastUpdate = now
 
+                -- ✅ FIX: Ambil ping dengan pcall
                 local ping
-
                 local pingSuccess, pingValue = pcall(function()
-                    return Stats.Network.ServerStatsItem[
-                        "Data Ping"
-                    ]:GetValue()
+                    return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
                 end)
-
                 if pingSuccess then
                     ping = tonumber(pingValue)
                 end
 
-                local fpsLbl =
-                    fpsHudFrame:FindFirstChild("FPSLabel")
+                local fpsLbl = fpsHudFrame:FindFirstChild("FPSLabel")
+                local pingLbl = fpsHudFrame:FindFirstChild("PingLabel")
 
-                local pingLbl =
-                    fpsHudFrame:FindFirstChild("PingLabel")
-
+                -- Update FPS
                 if fpsLbl then
-                    fpsLbl.Text =
-                        string.format("FPS: %d", fps)
-
+                    fpsLbl.Text = string.format("FPS: %d", fps)
                     if fps < 30 then
                         fpsLbl.TextColor3 = RED
                     elseif fps < 50 then
@@ -1974,14 +1276,10 @@ createToggleRow(
                     end
                 end
 
+                -- Update Ping
                 if pingLbl then
                     if ping then
-                        pingLbl.Text =
-                            string.format(
-                                "Ping: %dms",
-                                math.floor(ping)
-                            )
-
+                        pingLbl.Text = string.format("Ping: %dms", math.floor(ping))
                         if ping < 80 then
                             pingLbl.TextColor3 = GREEN
                         elseif ping < 150 then
@@ -1996,216 +1294,157 @@ createToggleRow(
                 end
             end
         end)
-    end
-)
-
-local disabledEffectsList = {}
-
-createToggleRow(
-    graphicsPage,
-    "⚡ Disable Post-Effects",
-    "Matikan Blur, Bloom, DOF & SunRays",
-    201,
-    function(isOn)
-        if isOn then
-            table.clear(disabledEffectsList)
-
-            for _, v in ipairs(Lighting:GetChildren()) do
-                if v:IsA("PostEffect") and v.Enabled then
-                    table.insert(disabledEffectsList, v)
-
-                    pcall(function()
-                        v.Enabled = false
-                    end)
-                end
-            end
-        else
-            for _, v in ipairs(disabledEffectsList) do
-                if v and v.Parent then
-                    pcall(function()
-                        v.Enabled = true
-                    end)
-                end
-            end
-
-            table.clear(disabledEffectsList)
+    else
+        if fpsHudConn then
+            fpsHudConn:Disconnect()
+            fpsHudConn = nil
+        end
+        if fpsHudFrame then
+            fpsHudFrame.Visible = false
         end
     end
-)
+end)
 
-createCategoryLabel(
-    graphicsPage,
-    "[ VISUAL & LIGHTING ]",
-    264
-)
+-- 4. DISABLE POST-EFFECTS
+local disabledEffectsList = {}
+
+createToggleRow(graphicsPage, "⚡ Disable Post-Effects", "Matikan Blur, Bloom, DOF & SunRays", 201, function(isOn)
+    if isOn then
+        table.clear(disabledEffectsList)
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v:IsA("PostEffect") or v:IsA("BlurEffect") or v:IsA("BloomEffect") or v:IsA("SunRaysEffect") or v:IsA("DepthOfFieldEffect") then
+                if v.Enabled then
+                    table.insert(disabledEffectsList, v)
+                    v.Enabled = false
+                end
+            end
+        end
+    else
+        for _, v in ipairs(disabledEffectsList) do
+            if v and v.Parent then
+                v.Enabled = true
+            end
+        end
+        table.clear(disabledEffectsList)
+    end
+end)
+
+createCategoryLabel(graphicsPage, "[ VISUAL & LIGHTING ]", 264)
 
 local defaultBrightness = Lighting.Brightness
 local defaultClockTime = Lighting.ClockTime
 local defaultFogEnd = Lighting.FogEnd
 local defaultFogStart = Lighting.FogStart
 local defaultGlobalShadows = Lighting.GlobalShadows
-local defaultOutdoorAmbient = Lighting.OutdoorAmbient
 
+-- 5. FULLBRIGHT
 local fullbrightConnection = nil
 
-createToggleRow(
-    graphicsPage,
-    "☀️ Fullbright",
-    "Memaksa map menjadi terang benderang",
-    289,
-    function(isOn)
-        if fullbrightConnection then
-            fullbrightConnection:Disconnect()
-            fullbrightConnection = nil
-        end
-
-        if isOn then
-            defaultBrightness = Lighting.Brightness
-            defaultClockTime = Lighting.ClockTime
-            defaultGlobalShadows = Lighting.GlobalShadows
-            defaultOutdoorAmbient = Lighting.OutdoorAmbient
-
-            fullbrightConnection =
-                RunService.RenderStepped:Connect(function()
-                    pcall(function()
-                        Lighting.Brightness = 2
-                        Lighting.ClockTime = 14
-                        Lighting.GlobalShadows = false
-                        Lighting.OutdoorAmbient =
-                            Color3.fromRGB(128, 128, 128)
-                    end)
-                end)
-        else
-            pcall(function()
-                Lighting.Brightness = defaultBrightness
-                Lighting.ClockTime = defaultClockTime
-                Lighting.GlobalShadows = defaultGlobalShadows
-                Lighting.OutdoorAmbient = defaultOutdoorAmbient
-            end)
-        end
+createToggleRow(graphicsPage, "☀️ Fullbright", "Memaksa map menjadi terang benderang", 289, function(isOn)
+    if fullbrightConnection then
+        fullbrightConnection:Disconnect()
+        fullbrightConnection = nil
     end
-)
 
+    if isOn then
+        defaultBrightness = Lighting.Brightness
+        defaultClockTime = Lighting.ClockTime
+        defaultGlobalShadows = Lighting.GlobalShadows
+
+        fullbrightConnection = RunService.RenderStepped:Connect(function()
+            Lighting.Brightness = 2
+            Lighting.ClockTime = 14
+            Lighting.GlobalShadows = false
+            Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+        end)
+    else
+        pcall(function()
+            Lighting.Brightness = defaultBrightness
+            Lighting.ClockTime = defaultClockTime
+            Lighting.GlobalShadows = defaultGlobalShadows
+            Lighting.OutdoorAmbient = Color3.fromRGB(127, 127, 127)
+        end)
+    end
+end)
+
+-- 6. REMOVE FOG
 local removeFogConnection = nil
 local hiddenAtmospheres = {}
 
-createToggleRow(
-    graphicsPage,
-    "🌤️ Remove Fog",
-    "Menghapus kabut & efek atmosphere",
-    346,
-    function(isOn)
-        if removeFogConnection then
-            removeFogConnection:Disconnect()
-            removeFogConnection = nil
-        end
-
-        if isOn then
-            defaultFogStart = Lighting.FogStart
-            defaultFogEnd = Lighting.FogEnd
-
-            table.clear(hiddenAtmospheres)
-
-            for _, v in ipairs(Lighting:GetChildren()) do
-                if v:IsA("Atmosphere") then
-                    table.insert(hiddenAtmospheres, {
-                        Inst = v,
-                        Density = v.Density
-                    })
-
-                    pcall(function()
-                        v.Density = 0
-                    end)
-                end
-            end
-
-            removeFogConnection =
-                RunService.RenderStepped:Connect(function()
-                    pcall(function()
-                        Lighting.FogStart = 0
-                        Lighting.FogEnd = 9e9
-                    end)
-                end)
-        else
-            pcall(function()
-                Lighting.FogStart = defaultFogStart
-                Lighting.FogEnd = defaultFogEnd
-            end)
-
-            for _, item in ipairs(hiddenAtmospheres) do
-                if item.Inst and item.Inst.Parent then
-                    pcall(function()
-                        item.Inst.Density = item.Density
-                    end)
-                end
-            end
-
-            table.clear(hiddenAtmospheres)
-        end
+createToggleRow(graphicsPage, "🌤️ Remove Fog", "Menghapus kabut & efek atmosphere", 346, function(isOn)
+    if removeFogConnection then
+        removeFogConnection:Disconnect()
+        removeFogConnection = nil
     end
-)
+
+    if isOn then
+        defaultFogStart = Lighting.FogStart
+        defaultFogEnd = Lighting.FogEnd
+
+        removeFogConnection = RunService.RenderStepped:Connect(function()
+            Lighting.FogStart = 0
+            Lighting.FogEnd = 9e9
+        end)
+
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v:IsA("Atmosphere") then
+                table.insert(hiddenAtmospheres, {Inst = v, Density = v.Density})
+                v.Density = 0
+            end
+        end
+    else
+        pcall(function()
+            Lighting.FogStart = defaultFogStart
+            Lighting.FogEnd = defaultFogEnd
+        end)
+
+        for _, item in ipairs(hiddenAtmospheres) do
+            if item.Inst and item.Inst.Parent then
+                item.Inst.Density = item.Density or 0.395
+            end
+        end
+        table.clear(hiddenAtmospheres)
+    end
+end)
 
 graphicsPage.CanvasSize = UDim2.new(0, 0, 0, 410)
 
+-- ============================================================
+-- DRAGGING LOGIC CONTROL (− BUTTON)
+-- ============================================================
 local isDraggingMenu = false
 local dragStartPos = nil
 local dragStartMouse = nil
 
-local function getInputPosition(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        return input.Position
-    end
-
-    local mousePos = UserInputService:GetMouseLocation()
-
-    return Vector2.new(
-        mousePos.X,
-        mousePos.Y
-    )
-end
-
 dragButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         isDraggingMenu = true
         dragStartPos = frame.Position
-        dragStartMouse = getInputPosition(input)
+        dragStartMouse = UserInputService:GetMouseLocation()
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if not isDraggingMenu then
-        return
-    end
-
-    if input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch then
-
-        local currentMouse = getInputPosition(input)
+    if not isDraggingMenu then return end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        local currentMouse = UserInputService:GetMouseLocation()
         local delta = currentMouse - dragStartMouse
-
         frame.Position = UDim2.new(
-            dragStartPos.X.Scale,
-            dragStartPos.X.Offset + delta.X,
-            dragStartPos.Y.Scale,
+            dragStartPos.X.Scale, 
+            dragStartPos.X.Offset + delta.X, 
+            dragStartPos.Y.Scale, 
             dragStartPos.Y.Offset + delta.Y
         )
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         isDraggingMenu = false
     end
 end)
 
-loadWaypoints()
+refreshWaypointList()
 
-task.defer(function()
-    if gui and gui.Parent then
-        refreshWaypointList()
-    end
-end)
+print("〽️ STRN BP — LOADED (Tanpa Translate) 🔥")
+print("📌 Tab: Way | Act | Hop | Gfx")
