@@ -1,5 +1,5 @@
 -- ============================================================
--- STRN BP — FIXED & READY TO EXECUTE (TANPA TRANSLATE)
+-- STRN BP — FULL COMPREHENSIVE SCRIPT (EXACT MATCH & MODERN GFX HUD)
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -34,11 +34,14 @@ local YELLOW = Color3.fromRGB(255, 200, 50)
 getgenv().STRN_ToggleStates = getgenv().STRN_ToggleStates or {}
 local ToggleStates = getgenv().STRN_ToggleStates
 
--- STORAGE FILE WAYPOINT (PER-GAME VIA PLACEID)
+-- STORAGE FILE WAYPOINT & LAST SERVER (PER-GAME VIA PLACEID)
 local PlaceId = game.PlaceId
 local JobId = game.JobId
 local WAYPOINT_FILE = "STRN_Waypoint_" .. tostring(PlaceId) .. ".json"
+local LAST_SERVER_FILE = "STRN_LastServer_" .. tostring(PlaceId) .. ".json"
 local waypoints = {}
+local previousJobId = nil
+local blacklistedServers = {[JobId] = true}
 
 local function saveWaypoints()
     local success, json = pcall(function() return HttpService:JSONEncode(waypoints) end)
@@ -60,7 +63,30 @@ local function loadWaypoints()
     end
 end
 
+local function saveCurrentServerAsPrevious()
+    if writefile and JobId and JobId ~= "" then
+        pcall(function()
+            writefile(LAST_SERVER_FILE, HttpService:JSONEncode({jobId = JobId}))
+        end)
+    end
+end
+
+local function loadPreviousServer()
+    if isfile and isfile(LAST_SERVER_FILE) and readfile then
+        local success, fileData = pcall(function() return readfile(LAST_SERVER_FILE) end)
+        if success and fileData and fileData ~= "" then
+            local decodeSuccess, decoded = pcall(function() return HttpService:JSONDecode(fileData) end)
+            if decodeSuccess and type(decoded) == "table" and decoded.jobId then
+                if decoded.jobId ~= JobId then
+                    previousJobId = decoded.jobId
+                end
+            end
+        end
+    end
+end
+
 loadWaypoints()
+loadPreviousServer()
 
 -- CLEANUP OLD GUI
 local oldGui = PlayerGui:FindFirstChild("STRN Bypass")
@@ -187,7 +213,7 @@ getgenv().ToggleSTRNBypass = function()
     frame.Visible = not frame.Visible
 end
 
--- TAB SELECTOR (4 TAB - TRANSLATE DIHAPUS)
+-- TAB SELECTOR (4 TAB)
 local tabHolder = Instance.new("Frame")
 tabHolder.Size = UDim2.new(1, -20, 0, 35)
 tabHolder.Position = UDim2.fromOffset(10, 48)
@@ -195,7 +221,6 @@ tabHolder.BackgroundTransparency = 1
 tabHolder.ZIndex = 305
 tabHolder.Parent = frame
 
--- ✅ PERUBAHAN: Tab width jadi 4, bukan 5
 local tabWidth = (menuWidth - 29) / 4
 
 local function createNavTab(text, posX)
@@ -219,7 +244,6 @@ local function createNavTab(text, posX)
     return btn
 end
 
--- ✅ TAB: TRANSLATE DIHAPUS, 4 TAB TERSISA
 local waypointTabBtn = createNavTab("📍 Way", 0)
 local interactTabBtn = createNavTab("⚡ Act", tabWidth + 3)
 local hopTabBtn = createNavTab("🎯 Hop", (tabWidth + 3) * 2)
@@ -267,7 +291,6 @@ local function switchTab(selectedPage, selectedBtn)
 
     selectedBtn.BackgroundColor3 = ON_COLOR
 
-    -- ✅ TRANSLATE PAGE DIHAPUS DARI LIST
     local pages = {waypointPage, interactPage, hopPage, graphicsPage}
     for _, p in ipairs(pages) do
         if p.Visible then
@@ -418,7 +441,7 @@ local function createToggleRow(parent, titleText, descText, yPosition, callback)
 end
 
 -- ============================================================
--- 1. WAYPOINT PAGE CONTENT (ORIGINAL LAYOUT)
+-- 1. WAYPOINT PAGE CONTENT
 -- ============================================================
 local nameInput = Instance.new("TextBox")
 nameInput.Size = UDim2.new(1, -10, 0, 38)
@@ -625,10 +648,8 @@ saveBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================================
--- 2. FAST INTERACT & GROUPED ESP PAGE CONTENT (ORIGINAL LAYOUT)
+-- 2. FAST INTERACT & GROUPED ESP PAGE CONTENT
 -- ============================================================
--- ✅ TRANSLATE PAGE DIHAPUS TOTAL
-
 createCategoryLabel(interactPage, "[ UTILITY & INTERACT ]", 5)
 
 local autoPromptConn = nil
@@ -858,7 +879,7 @@ end)
 interactPage.CanvasSize = UDim2.new(0, 0, 0, 290)
 
 -- ============================================================
--- 3. SERVER HOP PAGE CONTENT (FIXED TEXT & LOGIC)
+-- 3. SERVER HOP PAGE CONTENT (WITH EXACT MATCH TOGGLE)
 -- ============================================================
 local hopTitle = Instance.new("TextLabel")
 hopTitle.Size = UDim2.new(1, -10, 0, 30)
@@ -907,7 +928,7 @@ local inputLabel = Instance.new("TextLabel")
 inputLabel.Size = UDim2.new(1, -10, 0, 22)
 inputLabel.Position = UDim2.fromOffset(5, 95)
 inputLabel.BackgroundTransparency = 1
-inputLabel.Text = "Masukkan jumlah player (Maksimal):"
+inputLabel.Text = "Masukkan jumlah player:"
 inputLabel.TextColor3 = TEXT
 inputLabel.TextSize = 14
 inputLabel.Font = Enum.Font.GothamMedium
@@ -945,9 +966,15 @@ targetInput.FocusLost:Connect(function()
     end
 end)
 
+-- TOGGLE KHUSUS EXACT PLAYER MATCH
+local exactMatchActive = false
+createToggleRow(hopPage, "🎯 Exact Player Match", "Hanya pilih server yang player-nya PERSIS sesuai target", 170, function(isOn)
+    exactMatchActive = isOn
+end)
+
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, -10, 0, 25)
-statusLabel.Position = UDim2.fromOffset(5, 175)
+statusLabel.Position = UDim2.fromOffset(5, 230)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = "Status: ✅ Siap"
 statusLabel.TextColor3 = SUBTEXT
@@ -959,7 +986,7 @@ statusLabel.Parent = hopPage
 
 local hopBtn = Instance.new("TextButton")
 hopBtn.Size = UDim2.fromOffset((menuWidth - 40) / 2 - 5, 40)
-hopBtn.Position = UDim2.fromOffset(10, 210)
+hopBtn.Position = UDim2.fromOffset(10, 260)
 hopBtn.BackgroundColor3 = ON_COLOR
 hopBtn.BorderSizePixel = 0
 hopBtn.Text = "🚀 Hop Sekali"
@@ -976,7 +1003,7 @@ hopCorner.Parent = hopBtn
 
 local autoHopBtn = Instance.new("TextButton")
 autoHopBtn.Size = UDim2.fromOffset((menuWidth - 40) / 2 - 5, 40)
-autoHopBtn.Position = UDim2.new(0.5, 5, 0, 210)
+autoHopBtn.Position = UDim2.new(0.5, 5, 0, 260)
 autoHopBtn.BackgroundColor3 = BUTTON
 autoHopBtn.BorderSizePixel = 0
 autoHopBtn.Text = "🔁 Auto: OFF"
@@ -993,7 +1020,7 @@ autoCorner.Parent = autoHopBtn
 
 local stopAutoBtn = Instance.new("TextButton")
 stopAutoBtn.Size = UDim2.new(1, -20, 0, 35)
-stopAutoBtn.Position = UDim2.fromOffset(10, 260)
+stopAutoBtn.Position = UDim2.fromOffset(10, 310)
 stopAutoBtn.BackgroundColor3 = RED
 stopAutoBtn.BorderSizePixel = 0
 stopAutoBtn.Text = "⏹️ Stop Auto"
@@ -1009,13 +1036,38 @@ local stopAutoCorner = Instance.new("UICorner")
 stopAutoCorner.CornerRadius = UDim.new(0, 8)
 stopAutoCorner.Parent = stopAutoBtn
 
-local rejoinBtn = createStandardBtn(hopPage, "🔄 Rejoin Server Saat Ini", 305)
-local copyJobBtn = createStandardBtn(hopPage, "📋 Copy JobID / Join Script", 350)
+local rejoinBtn = createStandardBtn(hopPage, "🔄 Rejoin Server Saat Ini", 355)
+local rejoinPrevBtn = createStandardBtn(hopPage, "⏮️ Rejoin Server Sebelumnya", 400)
+local copyJobBtn = createStandardBtn(hopPage, "📋 Copy JobID / Join Script", 445)
 
 local isAutoHoping = false
 local autoHopRunning = false
+local isHopInProcess = false
+
+local function FetchServerList(cursor)
+    local url = "https://games.roblox.com/v1/games/" .. tostring(PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
+    if cursor and cursor ~= "" then
+        url = url .. "&cursor=" .. tostring(cursor)
+    end
+    
+    local success, response = pcall(function()
+        return game:HttpGet(url)
+    end)
+    
+    if success and response and response ~= "" then
+        local decodeSuccess, decoded = pcall(function()
+            return HttpService:JSONDecode(response)
+        end)
+        if decodeSuccess and decoded and decoded.data then
+            return decoded.data, decoded.nextPageCursor
+        end
+    end
+    return nil, nil
+end
 
 local function HopServer()
+    if isHopInProcess then return end
+    
     local target = tonumber(targetInput.Text)
     if not target then
         statusLabel.Text = "❌ Masukkan angka jumlah player!"
@@ -1023,43 +1075,76 @@ local function HopServer()
         return
     end
     
+    isHopInProcess = true
     target = math.clamp(target, 0, game.Players.MaxPlayers)
     
-    statusLabel.Text = "🔍 Mencari server..."
+    statusLabel.Text = "🔍 Memindai server (Deep Scan)..."
     statusLabel.TextColor3 = YELLOW
     hopBtn.Text = "⏳ Mencari..."
     
-    local success, result = pcall(function()
-        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
-    end)
-    
-    if success and result and result.data then
+    task.spawn(function()
         local validServers = {}
-        for _, server in ipairs(result.data) do
-            if server.id ~= JobId and server.playing <= target and server.playing < server.maxPlayers then
-                table.insert(validServers, server)
+        local currentCursor = ""
+        local pageLimit = 5
+        local pagesFetched = 0
+        
+        while pagesFetched < pageLimit do
+            pagesFetched = pagesFetched + 1
+            local servers, nextCursor = FetchServerList(currentCursor)
+            
+            if servers then
+                for _, server in ipairs(servers) do
+                    local serverId = tostring(server.id)
+                    local playing = tonumber(server.playing) or 0
+                    local maxP = tonumber(server.maxPlayers) or 0
+                    
+                    if serverId ~= JobId and not blacklistedServers[serverId] then
+                        local isMatch = false
+                        if exactMatchActive then
+                            isMatch = (playing == target)
+                        else
+                            isMatch = (playing <= target and playing < maxP)
+                        end
+                        
+                        if isMatch then
+                            table.insert(validServers, {id = serverId, playing = playing})
+                        end
+                    end
+                end
+            else
+                break
             end
+            
+            if #validServers >= 3 or not nextCursor or nextCursor == "" then
+                break
+            end
+            currentCursor = nextCursor
+            task.wait(0.2)
         end
         
         if #validServers > 0 then
             math.randomseed(tick())
-            local chosenServer = validServers[math.random(1, #validServers)]
+            local chosen = validServers[math.random(1, #validServers)]
+            blacklistedServers[chosen.id] = true
             
-            statusLabel.Text = "✅ Ditemukan! (" .. chosenServer.playing .. " player)"
+            statusLabel.Text = "✅ Ditemukan! (" .. chosen.playing .. " player)"
             statusLabel.TextColor3 = GREEN
             hopBtn.Text = "🚀 Hop Sekali"
-            TeleportService:TeleportToPlaceInstance(PlaceId, chosenServer.id, Player)
-            return
+            
+            saveCurrentServerAsPrevious()
+            TeleportService:TeleportToPlaceInstance(PlaceId, chosen.id, Player)
         else
-            statusLabel.Text = "❌ Tidak ada server ≤ " .. target
+            if exactMatchActive then
+                statusLabel.Text = "❌ Tidak ada server dengan " .. target .. " player"
+            else
+                statusLabel.Text = "❌ Server tak ditemukan / API limit"
+            end
             statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
             hopBtn.Text = "🚀 Hop Sekali"
         end
-    else
-        statusLabel.Text = "❌ Gagal memuat data server!"
-        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        hopBtn.Text = "🚀 Hop Sekali"
-    end
+        
+        isHopInProcess = false
+    end)
 end
 
 local function startAutoHop()
@@ -1084,11 +1169,18 @@ local function startAutoHop()
             local currentTarget = tonumber(targetInput.Text) or 5
             currentTarget = math.clamp(currentTarget, 0, game.Players.MaxPlayers)
             
-            if #Players:GetPlayers() > currentTarget then
-                HopServer()
-                task.wait(2)
+            local shouldHop = false
+            if exactMatchActive then
+                shouldHop = (#Players:GetPlayers() ~= currentTarget)
             else
-                statusLabel.Text = "🔄 Normal (" .. #Players:GetPlayers() .. " ≤ " .. currentTarget .. ")"
+                shouldHop = (#Players:GetPlayers() > currentTarget)
+            end
+            
+            if shouldHop then
+                HopServer()
+                task.wait(4)
+            else
+                statusLabel.Text = "🔄 Normal (" .. #Players:GetPlayers() .. " player)"
                 statusLabel.TextColor3 = SUBTEXT
             end
             task.wait(3)
@@ -1113,7 +1205,20 @@ end)
 stopAutoBtn.MouseButton1Click:Connect(stopAutoHop)
 
 rejoinBtn.MouseButton1Click:Connect(function()
+    saveCurrentServerAsPrevious()
     TeleportService:TeleportToPlaceInstance(PlaceId, JobId, Player)
+end)
+
+rejoinPrevBtn.MouseButton1Click:Connect(function()
+    if previousJobId and previousJobId ~= "" then
+        statusLabel.Text = "⏳ Teleport ke server sebelumnya..."
+        statusLabel.TextColor3 = YELLOW
+        saveCurrentServerAsPrevious()
+        TeleportService:TeleportToPlaceInstance(PlaceId, previousJobId, Player)
+    else
+        statusLabel.Text = "❌ Tidak ada riwayat server sebelumnya!"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
 end)
 
 copyJobBtn.MouseButton1Click:Connect(function()
@@ -1124,13 +1229,11 @@ copyJobBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-hopPage.CanvasSize = UDim2.new(0, 0, 0, 400)
+hopPage.CanvasSize = UDim2.new(0, 0, 0, 500)
 
 -- ============================================================
 -- 4. GRAPHICS (GFX) PAGE CONTENT
 -- ============================================================
--- ✅ FPS & PING DIPERBAIKI: FPS dan Ping DIPISAH jadi 2 label
-
 createCategoryLabel(graphicsPage, "[ PERFORMANCE & OPTIMIZATION ]", 5)
 
 local originalMaterials = {}
@@ -1172,8 +1275,107 @@ createToggleRow(graphicsPage, "📉 Low Graphics", "Mode Anti-Lag (Material Smoo
     end
 end)
 
--- 2. LIMIT 30 FPS
-createToggleRow(graphicsPage, "🔋 Limit 30 FPS", "Penghemat baterai saat AFK", 87, function(isOn)
+-- 2. HIDE OTHER PLAYERS (AUTO ACCESORY & SLOW LOAD FIXED)
+local hidePlayersActive = false
+local hidePlayersConn = nil
+local playerAddedConns = {}
+local childAddedConns = {}
+
+local function setPartTransparency(part, transparencyValue)
+    if part:IsA("BasePart") or part:IsA("Decal") then
+        part.Transparency = transparencyValue
+    elseif part:IsA("ParticleEmitter") or part:IsA("Sparkles") or part:IsA("Fire") or part:IsA("Beam") or part:IsA("Trail") then
+        part.Enabled = (transparencyValue == 0)
+    end
+end
+
+local function applyHideToCharacter(character, hide)
+    if not character then return end
+    local transVal = hide and 1 or 0
+    
+    for _, part in ipairs(character:GetDescendants()) do
+        if part.Name ~= "HumanoidRootPart" then
+            setPartTransparency(part, transVal)
+        end
+    end
+end
+
+local function monitorCharacterAccessories(character)
+    if not character then return end
+    
+    local conn = character.ChildAdded:Connect(function(child)
+        if hidePlayersActive then
+            task.wait(0.1)
+            applyHideToCharacter(child, true)
+            for _, descendant in ipairs(child:GetDescendants()) do
+                setPartTransparency(descendant, 1)
+            end
+        end
+    end)
+    table.insert(childAddedConns, conn)
+end
+
+local function toggleHidePlayers(state)
+    hidePlayersActive = state
+    
+    if hidePlayersConn then hidePlayersConn:Disconnect() hidePlayersConn = nil end
+    for _, conn in ipairs(playerAddedConns) do conn:Disconnect() end
+    for _, conn in ipairs(childAddedConns) do conn:Disconnect() end
+    table.clear(playerAddedConns)
+    table.clear(childAddedConns)
+
+    for _, targetPlayer in ipairs(Players:GetPlayers()) do
+        if targetPlayer ~= Player and targetPlayer.Character then
+            applyHideToCharacter(targetPlayer.Character, hidePlayersActive)
+            if hidePlayersActive then
+                monitorCharacterAccessories(targetPlayer.Character)
+            end
+        end
+    end
+
+    if hidePlayersActive then
+        local function onCharAdded(targetPlayer, char)
+            if not hidePlayersActive then return end
+            
+            applyHideToCharacter(char, true)
+            monitorCharacterAccessories(char)
+            
+            task.spawn(function()
+                task.wait(0.5)
+                if hidePlayersActive and char and char.Parent then
+                    applyHideToCharacter(char, true)
+                end
+                task.wait(1.5)
+                if hidePlayersActive and char and char.Parent then
+                    applyHideToCharacter(char, true)
+                end
+            end)
+        end
+
+        for _, targetPlayer in ipairs(Players:GetPlayers()) do
+            if targetPlayer ~= Player then
+                local conn = targetPlayer.CharacterAdded:Connect(function(char)
+                    onCharAdded(targetPlayer, char)
+                end)
+                table.insert(playerAddedConns, conn)
+            end
+        end
+
+        hidePlayersConn = Players.PlayerAdded:Connect(function(targetPlayer)
+            local conn = targetPlayer.CharacterAdded:Connect(function(char)
+                onCharAdded(targetPlayer, char)
+            end)
+            table.insert(playerAddedConns, conn)
+        end)
+    end
+end
+
+createToggleRow(graphicsPage, "👤 Hide Other Players", "Sembunyikan model player lain (Boost FPS)", 87, function(isOn)
+    toggleHidePlayers(isOn)
+end)
+
+-- 3. LIMIT 30 FPS
+createToggleRow(graphicsPage, "🔋 Limit 30 FPS", "Penghemat baterai saat AFK", 144, function(isOn)
     if isOn then
         if setfpscap then setfpscap(30) end
     else
@@ -1181,60 +1383,143 @@ createToggleRow(graphicsPage, "🔋 Limit 30 FPS", "Penghemat baterai saat AFK",
     end
 end)
 
--- 3. FPS & PING DISPLAY HUD (FIXED - DIPISAH)
+-- 4. FPS & PING DISPLAY HUD (MODERN DUAL-PILL DRAGGABLE EDITION)
 local fpsHudFrame = nil
 local fpsHudConn = nil
 
-createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan statistik FPS & Ping di layar", 144, function(isOn)
+createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan HUD performa modern di layar", 201, function(isOn)
     if isOn then
-        -- ✅ FIX: Buat frame dengan 2 label terpisah (FPS & Ping)
         if not fpsHudFrame then
             fpsHudFrame = Instance.new("Frame")
-            fpsHudFrame.Name = "STRN_FpsPingHUD"
-            fpsHudFrame.Size = UDim2.fromOffset(190, 30)
-            fpsHudFrame.Position = UDim2.new(1, -200, 0, 10)
+            fpsHudFrame.Name = "STRN_ModernHud"
+            fpsHudFrame.Size = UDim2.fromOffset(210, 36)
+            fpsHudFrame.Position = UDim2.new(1, -220, 0.05, 0)
             fpsHudFrame.BackgroundColor3 = BG
-            fpsHudFrame.BackgroundTransparency = 0.35
+            fpsHudFrame.BackgroundTransparency = 0.2
             fpsHudFrame.BorderSizePixel = 0
             fpsHudFrame.ZIndex = 9999999
+            fpsHudFrame.Active = true
             fpsHudFrame.Parent = gui
 
-            local hCorner = Instance.new("UICorner")
-            hCorner.CornerRadius = UDim.new(0, 8)
-            hCorner.Parent = fpsHudFrame
+            local mainCorner = Instance.new("UICorner")
+            mainCorner.CornerRadius = UDim.new(0, 10)
+            mainCorner.Parent = fpsHudFrame
 
-            local hStroke = Instance.new("UIStroke")
-            hStroke.Color = Color3.fromRGB(80, 80, 90)
-            hStroke.Transparency = 0.5
-            hStroke.Thickness = 1
-            hStroke.Parent = fpsHudFrame
+            local mainStroke = Instance.new("UIStroke")
+            mainStroke.Color = Color3.fromRGB(80, 80, 90)
+            mainStroke.Transparency = 0.4
+            mainStroke.Thickness = 1.2
+            mainStroke.Parent = fpsHudFrame
 
-            -- ✅ FPS Label (kiri)
+            -- CARD FPS
+            local fpsCard = Instance.new("Frame")
+            fpsCard.Name = "FPSCard"
+            fpsCard.Size = UDim2.new(0.5, -7, 1, -8)
+            fpsCard.Position = UDim2.fromOffset(5, 4)
+            fpsCard.BackgroundColor3 = CARD_BG
+            fpsCard.BorderSizePixel = 0
+            fpsCard.ZIndex = 9999999
+            fpsCard.Parent = fpsHudFrame
+
+            local fpsCorner = Instance.new("UICorner")
+            fpsCorner.CornerRadius = UDim.new(0, 7)
+            fpsCorner.Parent = fpsCard
+
+            local fpsDot = Instance.new("Frame")
+            fpsDot.Name = "FPSDot"
+            fpsDot.Size = UDim2.fromOffset(6, 6)
+            fpsDot.Position = UDim2.new(0, 8, 0.5, -3)
+            fpsDot.BackgroundColor3 = GREEN
+            fpsDot.BorderSizePixel = 0
+            fpsDot.ZIndex = 10000000
+            fpsDot.Parent = fpsCard
+
+            local fpsDotCorner = Instance.new("UICorner")
+            fpsDotCorner.CornerRadius = UDim.new(1, 0)
+            fpsDotCorner.Parent = fpsDot
+
             local fpsLabel = Instance.new("TextLabel")
             fpsLabel.Name = "FPSLabel"
-            fpsLabel.Size = UDim2.new(0.5, -1, 1, 0)
+            fpsLabel.Size = UDim2.new(1, -20, 1, 0)
+            fpsLabel.Position = UDim2.fromOffset(18, 0)
             fpsLabel.BackgroundTransparency = 1
-            fpsLabel.Text = "FPS: --"
-            fpsLabel.TextColor3 = GREEN
+            fpsLabel.Text = "-- FPS"
+            fpsLabel.TextColor3 = TEXT
             fpsLabel.TextSize = 11
             fpsLabel.Font = Enum.Font.GothamBold
-            fpsLabel.TextXAlignment = Enum.TextXAlignment.Center
-            fpsLabel.ZIndex = 9999999
-            fpsLabel.Parent = fpsHudFrame
+            fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+            fpsLabel.ZIndex = 10000000
+            fpsLabel.Parent = fpsCard
 
-            -- ✅ Ping Label (kanan)
+            -- CARD PING
+            local pingCard = Instance.new("Frame")
+            pingCard.Name = "PingCard"
+            pingCard.Size = UDim2.new(0.5, -7, 1, -8)
+            pingCard.Position = UDim2.new(0.5, 2, 0, 4)
+            pingCard.BackgroundColor3 = CARD_BG
+            pingCard.BorderSizePixel = 0
+            pingCard.ZIndex = 9999999
+            pingCard.Parent = fpsHudFrame
+
+            local pingCorner = Instance.new("UICorner")
+            pingCorner.CornerRadius = UDim.new(0, 7)
+            pingCorner.Parent = pingCard
+
+            local pingDot = Instance.new("Frame")
+            pingDot.Name = "PingDot"
+            pingDot.Size = UDim2.fromOffset(6, 6)
+            pingDot.Position = UDim2.new(0, 8, 0.5, -3)
+            pingDot.BackgroundColor3 = GREEN
+            pingDot.BorderSizePixel = 0
+            pingDot.ZIndex = 10000000
+            pingDot.Parent = pingCard
+
+            local pingDotCorner = Instance.new("UICorner")
+            pingDotCorner.CornerRadius = UDim.new(1, 0)
+            pingDotCorner.Parent = pingDot
+
             local pingLabel = Instance.new("TextLabel")
             pingLabel.Name = "PingLabel"
-            pingLabel.Size = UDim2.new(0.5, -1, 1, 0)
-            pingLabel.Position = UDim2.new(0.5, 1, 0, 0)
+            pingLabel.Size = UDim2.new(1, -20, 1, 0)
+            pingLabel.Position = UDim2.fromOffset(18, 0)
             pingLabel.BackgroundTransparency = 1
-            pingLabel.Text = "Ping: -- ms"
-            pingLabel.TextColor3 = GREEN
+            pingLabel.Text = "-- ms"
+            pingLabel.TextColor3 = TEXT
             pingLabel.TextSize = 11
             pingLabel.Font = Enum.Font.GothamBold
-            pingLabel.TextXAlignment = Enum.TextXAlignment.Center
-            pingLabel.ZIndex = 9999999
-            pingLabel.Parent = fpsHudFrame
+            pingLabel.TextXAlignment = Enum.TextXAlignment.Left
+            pingLabel.ZIndex = 10000000
+            pingLabel.Parent = pingCard
+
+            -- DRAGGING LOGIC UNTUK HUD DISPLAY
+            local isDraggingHud = false
+            local dragStartPos, dragStartMouse
+
+            fpsHudFrame.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    isDraggingHud = true
+                    dragStartPos = fpsHudFrame.Position
+                    dragStartMouse = UserInputService:GetMouseLocation()
+                end
+            end)
+
+            UserInputService.InputChanged:Connect(function(input)
+                if isDraggingHud and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    local delta = UserInputService:GetMouseLocation() - dragStartMouse
+                    fpsHudFrame.Position = UDim2.new(
+                        dragStartPos.X.Scale,
+                        dragStartPos.X.Offset + delta.X,
+                        dragStartPos.Y.Scale,
+                        dragStartPos.Y.Offset + delta.Y
+                    )
+                end
+            end)
+
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    isDraggingHud = false
+                end
+            end)
         end
 
         fpsHudFrame.Visible = true
@@ -1246,50 +1531,54 @@ createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan statistik FP
             frameCount = frameCount + 1
             local now = tick()
 
-            if now - lastUpdate >= 0.5 then
+            if now - lastUpdate >= 0.4 then
                 local elapsed = now - lastUpdate
                 local fps = math.floor(frameCount / elapsed)
                 frameCount = 0
                 lastUpdate = now
 
-                -- ✅ FIX: Ambil ping dengan pcall
                 local ping
                 local pingSuccess, pingValue = pcall(function()
                     return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
                 end)
-                if pingSuccess then
-                    ping = tonumber(pingValue)
-                end
+                if pingSuccess then ping = tonumber(pingValue) end
 
-                local fpsLbl = fpsHudFrame:FindFirstChild("FPSLabel")
-                local pingLbl = fpsHudFrame:FindFirstChild("PingLabel")
+                local fpsCardObj = fpsHudFrame:FindFirstChild("FPSCard")
+                local pingCardObj = fpsHudFrame:FindFirstChild("PingCard")
 
-                -- Update FPS
-                if fpsLbl then
-                    fpsLbl.Text = string.format("FPS: %d", fps)
-                    if fps < 30 then
-                        fpsLbl.TextColor3 = RED
-                    elseif fps < 50 then
-                        fpsLbl.TextColor3 = YELLOW
-                    else
-                        fpsLbl.TextColor3 = GREEN
+                if fpsCardObj then
+                    local fpsLabel = fpsCardObj:FindFirstChild("FPSLabel")
+                    local fpsDot = fpsCardObj:FindFirstChild("FPSDot")
+
+                    if fpsLabel then fpsLabel.Text = string.format("%d FPS", fps) end
+                    if fpsDot then
+                        if fps < 30 then
+                            fpsDot.BackgroundColor3 = RED
+                        elseif fps < 50 then
+                            fpsDot.BackgroundColor3 = YELLOW
+                        else
+                            fpsDot.BackgroundColor3 = GREEN
+                        end
                     end
                 end
 
-                -- Update Ping
-                if pingLbl then
+                if pingCardObj then
+                    local pingLabel = pingCardObj:FindFirstChild("PingLabel")
+                    local pingDot = pingCardObj:FindFirstChild("PingDot")
+
                     if ping then
-                        pingLbl.Text = string.format("Ping: %dms", math.floor(ping))
-                        if ping < 80 then
-                            pingLbl.TextColor3 = GREEN
-                        elseif ping < 150 then
-                            pingLbl.TextColor3 = YELLOW
-                        else
-                            pingLbl.TextColor3 = RED
+                        if pingLabel then pingLabel.Text = string.format("%d ms", math.floor(ping)) end
+                        if pingDot then
+                            if ping < 80 then
+                                pingDot.BackgroundColor3 = GREEN
+                            elseif ping < 150 then
+                                pingDot.BackgroundColor3 = YELLOW
+                            else
+                                pingDot.BackgroundColor3 = RED
+                            end
                         end
                     else
-                        pingLbl.Text = "Ping: -- ms"
-                        pingLbl.TextColor3 = SUBTEXT
+                        if pingLabel then pingLabel.Text = "-- ms" end
                     end
                 end
             end
@@ -1305,10 +1594,10 @@ createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan statistik FP
     end
 end)
 
--- 4. DISABLE POST-EFFECTS
+-- 5. DISABLE POST-EFFECTS
 local disabledEffectsList = {}
 
-createToggleRow(graphicsPage, "⚡ Disable Post-Effects", "Matikan Blur, Bloom, DOF & SunRays", 201, function(isOn)
+createToggleRow(graphicsPage, "⚡ Disable Post-Effects", "Matikan Blur, Bloom, DOF & SunRays", 258, function(isOn)
     if isOn then
         table.clear(disabledEffectsList)
         for _, v in ipairs(Lighting:GetChildren()) do
@@ -1329,7 +1618,7 @@ createToggleRow(graphicsPage, "⚡ Disable Post-Effects", "Matikan Blur, Bloom, 
     end
 end)
 
-createCategoryLabel(graphicsPage, "[ VISUAL & LIGHTING ]", 264)
+createCategoryLabel(graphicsPage, "[ VISUAL & LIGHTING ]", 321)
 
 local defaultBrightness = Lighting.Brightness
 local defaultClockTime = Lighting.ClockTime
@@ -1337,10 +1626,10 @@ local defaultFogEnd = Lighting.FogEnd
 local defaultFogStart = Lighting.FogStart
 local defaultGlobalShadows = Lighting.GlobalShadows
 
--- 5. FULLBRIGHT
+-- 6. FULLBRIGHT
 local fullbrightConnection = nil
 
-createToggleRow(graphicsPage, "☀️ Fullbright", "Memaksa map menjadi terang benderang", 289, function(isOn)
+createToggleRow(graphicsPage, "☀️ Fullbright", "Memaksa map menjadi terang benderang", 346, function(isOn)
     if fullbrightConnection then
         fullbrightConnection:Disconnect()
         fullbrightConnection = nil
@@ -1367,11 +1656,11 @@ createToggleRow(graphicsPage, "☀️ Fullbright", "Memaksa map menjadi terang b
     end
 end)
 
--- 6. REMOVE FOG
+-- 7. REMOVE FOG
 local removeFogConnection = nil
 local hiddenAtmospheres = {}
 
-createToggleRow(graphicsPage, "🌤️ Remove Fog", "Menghapus kabut & efek atmosphere", 346, function(isOn)
+createToggleRow(graphicsPage, "🌤️ Remove Fog", "Menghapus kabut & efek atmosphere", 403, function(isOn)
     if removeFogConnection then
         removeFogConnection:Disconnect()
         removeFogConnection = nil
@@ -1407,7 +1696,7 @@ createToggleRow(graphicsPage, "🌤️ Remove Fog", "Menghapus kabut & efek atmo
     end
 end)
 
-graphicsPage.CanvasSize = UDim2.new(0, 0, 0, 410)
+graphicsPage.CanvasSize = UDim2.new(0, 0, 0, 470)
 
 -- ============================================================
 -- DRAGGING LOGIC CONTROL (− BUTTON)
@@ -1445,6 +1734,3 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 refreshWaypointList()
-
-print("〽️ STRN BP — LOADED (Tanpa Translate) 🔥")
-print("📌 Tab: Way | Act | Hop | Gfx")
