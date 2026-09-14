@@ -1,5 +1,5 @@
 -- ============================================================
--- STRN BP — FULL COMPREHENSIVE SCRIPT (EXACT MATCH & MODERN GFX HUD)
+-- SCRIPT 2: STRN BP / BYPASS (FULL FEATURES + TOAST NOTIFICATIONS)
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -19,15 +19,15 @@ local function getCharacter() return Player.Character or Player.CharacterAdded:W
 local function getRoot(c) c = c or getCharacter() return c:FindFirstChild("HumanoidRootPart") end
 
 -- PALET WARNA KHAS STRN
-local BG = Color3.fromRGB(20, 20, 25)
-local CARD_BG = Color3.fromRGB(30, 30, 38)
-local BUTTON = Color3.fromRGB(35, 35, 43)
+local BG_COLOR = Color3.fromRGB(18, 18, 24)
+local CARD_BG = Color3.fromRGB(28, 28, 36)
+local BUTTON_BG = Color3.fromRGB(35, 35, 45)
 local BUTTON_HOVER = Color3.fromRGB(50, 50, 60)
-local ON_COLOR = Color3.fromRGB(70, 180, 255)
-local TEXT = Color3.fromRGB(235, 235, 240)
-local SUBTEXT = Color3.fromRGB(150, 150, 160)
-local RED = Color3.fromRGB(220, 50, 50)
-local GREEN = Color3.fromRGB(70, 255, 70)
+local ACCENT_BLUE = Color3.fromRGB(35, 125, 255)
+local ACCENT_GREEN = Color3.fromRGB(45, 180, 100)
+local ACCENT_RED = Color3.fromRGB(220, 50, 60)
+local TEXT_MAIN = Color3.fromRGB(240, 240, 245)
+local TEXT_SUB = Color3.fromRGB(150, 150, 165)
 local YELLOW = Color3.fromRGB(255, 200, 50)
 
 -- PENYIMPAN STATUS TOGGLE GLOBAL
@@ -89,244 +89,437 @@ loadWaypoints()
 loadPreviousServer()
 
 -- CLEANUP OLD GUI
-local oldGui = PlayerGui:FindFirstChild("STRN Bypass")
+local oldGui = PlayerGui:FindFirstChild("STRN_BP_V2")
 if oldGui then oldGui:Destroy() end
 
--- GUI CONTAINER
 local gui = Instance.new("ScreenGui")
-gui.Name = "STRN Bypass"
+gui.Name = "STRN_BP_V2"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.DisplayOrder = 1000001
 gui.Parent = PlayerGui
 
--- IKON POJOK KANAN ATAS (TRANSPARAN)
-local hiddenTriggerIcon = Instance.new("TextButton")
-hiddenTriggerIcon.Name = "HiddenTrigger"
-hiddenTriggerIcon.Size = UDim2.fromOffset(20, 20)
-hiddenTriggerIcon.Position = UDim2.new(1, -25, 0, 5)
-hiddenTriggerIcon.BackgroundTransparency = 1
-hiddenTriggerIcon.Text = ""
-hiddenTriggerIcon.Active = false
-hiddenTriggerIcon.Selectable = false
-hiddenTriggerIcon.ZIndex = 999999
-hiddenTriggerIcon.Parent = gui
+-- TOAST NOTIFICATIONS (POJOK KANAN BAWAH)
+local toastContainer = PlayerGui:FindFirstChild("STRN_ToastContainer")
+if not toastContainer then
+    toastContainer = Instance.new("Frame")
+    toastContainer.Name = "STRN_ToastContainer"
+    toastContainer.Size = UDim2.new(0, 220, 1, 0)
+    toastContainer.Position = UDim2.new(1, -230, 0, -10)
+    toastContainer.BackgroundTransparency = 1
+    toastContainer.ZIndex = 9999999
+    toastContainer.Parent = gui
 
--- SINKRONISASI UKURAN DENGAN STRN HUB V2
-local viewport = Camera.ViewportSize
-local menuWidth = math.clamp(viewport.X * 0.82, 270, 330)
-local menuHeight = math.clamp(viewport.Y * 0.62, 360, 430)
-
-local hubXPos = 75
-local hubYCenter = viewport.Y * 0.5
-local hubTopY = hubYCenter - (menuHeight / 2)
-local bpYPos = hubTopY - menuHeight - 12
-
-if bpYPos < 10 then
-    bpYPos = 10
+    local toastLayout = Instance.new("UIListLayout")
+    toastLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    toastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    toastLayout.Padding = UDim.new(0, 8)
+    toastLayout.Parent = toastContainer
 end
+
+local function showToast(titleText, descText, accentColor)
+    accentColor = accentColor or ACCENT_BLUE
+    local toast = Instance.new("Frame")
+    toast.Size = UDim2.fromOffset(210, 46)
+    toast.BackgroundColor3 = BG_COLOR
+    toast.BackgroundTransparency = 0.15
+    toast.BorderSizePixel = 0
+    toast.ZIndex = 9999999
+    toast.Parent = toastContainer
+
+    local tCorner = Instance.new("UICorner")
+    tCorner.CornerRadius = UDim.new(0, 8)
+    tCorner.Parent = toast
+
+    local tStroke = Instance.new("UIStroke")
+    tStroke.Color = accentColor
+    tStroke.Thickness = 1.5
+    tStroke.Parent = toast
+
+    local tTitle = Instance.new("TextLabel")
+    tTitle.Size = UDim2.new(1, -16, 0, 20)
+    tTitle.Position = UDim2.fromOffset(10, 4)
+    tTitle.BackgroundTransparency = 1
+    tTitle.Text = titleText
+    tTitle.TextColor3 = TEXT_MAIN
+    tTitle.TextSize = 11
+    tTitle.Font = Enum.Font.GothamBold
+    tTitle.TextXAlignment = Enum.TextXAlignment.Left
+    tTitle.ZIndex = 10000000
+    tTitle.Parent = toast
+
+    local tDesc = Instance.new("TextLabel")
+    tDesc.Size = UDim2.new(1, -16, 0, 18)
+    tDesc.Position = UDim2.fromOffset(10, 22)
+    tDesc.BackgroundTransparency = 1
+    tDesc.Text = descText
+    tDesc.TextColor3 = TEXT_SUB
+    tDesc.TextSize = 9
+    tDesc.Font = Enum.Font.GothamMedium
+    tDesc.TextXAlignment = Enum.TextXAlignment.Left
+    tDesc.ZIndex = 10000000
+    tDesc.Parent = toast
+
+    task.spawn(function()
+        task.wait(2.5)
+        local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tFade = TweenService:Create(toast, tweenInfo, {BackgroundTransparency = 1})
+        TweenService:Create(tTitle, tweenInfo, {TextTransparency = 1}):Play()
+        TweenService:Create(tDesc, tweenInfo, {TextTransparency = 1}):Play()
+        TweenService:Create(tStroke, tweenInfo, {Transparency = 1}):Play()
+        tFade:Play()
+        tFade.Completed:Connect(function() toast:Destroy() end)
+    end)
+end
+
+local NORMAL_WIDTH = 450
+local COMPACT_WIDTH = 340
+local MENU_HEIGHT = 320
+
+local isCompact = false
+local isAnimating = false
 
 -- MAIN FRAME
 local frame = Instance.new("Frame")
-frame.Name = "Main"
-frame.Size = UDim2.fromOffset(menuWidth, menuHeight)
-frame.Position = UDim2.new(0, hubXPos, 0, bpYPos)
-frame.BackgroundColor3 = BG
-frame.BackgroundTransparency = 1
+frame.Name = "MainFrame"
+frame.Size = UDim2.fromOffset(NORMAL_WIDTH, MENU_HEIGHT)
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+frame.BackgroundColor3 = BG_COLOR
+frame.BackgroundTransparency = 0.15
 frame.BorderSizePixel = 0
 frame.Active = true
-frame.ZIndex = 300
+frame.ClipsDescendants = false
+frame.ZIndex = 100
 frame.Parent = gui
 
 local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0, 15)
+frameCorner.CornerRadius = UDim.new(0, 12)
 frameCorner.Parent = frame
 
 local frameStroke = Instance.new("UIStroke")
-frameStroke.Color = Color3.fromRGB(80, 80, 90)
-frameStroke.Transparency = 1
-frameStroke.Thickness = 1
+frameStroke.Color = Color3.fromRGB(70, 70, 85)
+frameStroke.Thickness = 1.5
+frameStroke.Transparency = 0.2
 frameStroke.Parent = frame
 
--- ANIMASI MUNCUL PERLAHAN
-task.spawn(function()
-    local tInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    TweenService:Create(frame, tInfo, {BackgroundTransparency = 0}):Play()
-    TweenService:Create(frameStroke, tInfo, {Transparency = 0}):Play()
-end)
+-- TOPBAR
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, -150, 0, 36)
+titleLabel.Position = UDim2.fromOffset(14, 2)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "STRN BP MENU"
+titleLabel.TextColor3 = TEXT_MAIN
+titleLabel.TextSize = 17
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.ZIndex = 110
+titleLabel.Parent = frame
 
--- HEADER
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -90, 0, 42)
-title.Position = UDim2.fromOffset(14, 5)
-title.BackgroundTransparency = 1
-title.Text = "📍 STRN BP"
-title.TextColor3 = TEXT
-title.TextSize = 20
-title.Font = Enum.Font.GothamBold
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.ZIndex = 310
-title.Parent = frame
-
--- TOMBOL MINIMIZE / DRAG (−)
+-- TOMBOL DRAG MINUS (−)
 local dragButton = Instance.new("TextButton")
-dragButton.Size = UDim2.fromOffset(32, 32)
-dragButton.Position = UDim2.new(1, -84, 0, 10)
-dragButton.BackgroundColor3 = BUTTON
+dragButton.Size = UDim2.fromOffset(28, 28)
+dragButton.Position = UDim2.new(1, -104, 0, 6)
+dragButton.BackgroundColor3 = BUTTON_BG
 dragButton.BorderSizePixel = 0
 dragButton.Text = "−"
-dragButton.TextColor3 = TEXT
-dragButton.TextSize = 20
+dragButton.TextColor3 = TEXT_MAIN
+dragButton.TextSize = 16
 dragButton.Font = Enum.Font.GothamBold
 dragButton.AutoButtonColor = false
-dragButton.ZIndex = 320
+dragButton.ZIndex = 120
 dragButton.Parent = frame
 
 local dragCorner = Instance.new("UICorner")
-dragCorner.CornerRadius = UDim.new(0, 8)
+dragCorner.CornerRadius = UDim.new(0, 7)
 dragCorner.Parent = dragButton
 
--- TOMBOL CLOSE (✕)
+local compactButton = Instance.new("TextButton")
+compactButton.Size = UDim2.fromOffset(28, 28)
+compactButton.Position = UDim2.new(1, -70, 0, 6)
+compactButton.BackgroundColor3 = BUTTON_BG
+compactButton.BorderSizePixel = 0
+compactButton.Text = "↔️"
+compactButton.TextColor3 = TEXT_MAIN
+compactButton.TextSize = 13
+compactButton.Font = Enum.Font.GothamBold
+compactButton.AutoButtonColor = false
+compactButton.ZIndex = 120
+compactButton.Parent = frame
+
+local compactCorner = Instance.new("UICorner")
+compactCorner.CornerRadius = UDim.new(0, 7)
+compactCorner.Parent = compactButton
+
 local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.fromOffset(32, 32)
-closeButton.Position = UDim2.new(1, -42, 0, 10)
-closeButton.BackgroundColor3 = BUTTON
+closeButton.Size = UDim2.fromOffset(28, 28)
+closeButton.Position = UDim2.new(1, -36, 0, 6)
+closeButton.BackgroundColor3 = BUTTON_BG
 closeButton.BorderSizePixel = 0
 closeButton.Text = "✕"
-closeButton.TextColor3 = TEXT
-closeButton.TextSize = 16
+closeButton.TextColor3 = TEXT_MAIN
+closeButton.TextSize = 13
 closeButton.Font = Enum.Font.GothamBold
 closeButton.AutoButtonColor = false
-closeButton.ZIndex = 320
+closeButton.ZIndex = 120
 closeButton.Parent = frame
 
 local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.CornerRadius = UDim.new(0, 7)
 closeCorner.Parent = closeButton
 
+-- AUTO-REOPEN STRN HUB WHEN BP CLOSED
 closeButton.MouseButton1Click:Connect(function()
     frame.Visible = false
+    local mainHub = PlayerGui:FindFirstChild("STRN HUB v2")
+    if mainHub and mainHub:FindFirstChild("MainFrame") then
+        mainHub.MainFrame.Visible = true
+        local openBtn = mainHub:FindFirstChild("OpenButton")
+        if openBtn then openBtn.Visible = false end
+    end
 end)
 
 getgenv().ToggleSTRNBypass = function()
     frame.Visible = not frame.Visible
 end
 
--- TAB SELECTOR (4 TAB)
-local tabHolder = Instance.new("Frame")
-tabHolder.Size = UDim2.new(1, -20, 0, 35)
-tabHolder.Position = UDim2.fromOffset(10, 48)
-tabHolder.BackgroundTransparency = 1
-tabHolder.ZIndex = 305
-tabHolder.Parent = frame
-
-local tabWidth = (menuWidth - 29) / 4
-
-local function createNavTab(text, posX)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.fromOffset(tabWidth, 35)
-    btn.Position = UDim2.fromOffset(posX, 0)
-    btn.BackgroundColor3 = BUTTON
-    btn.BorderSizePixel = 0
-    btn.Text = text
-    btn.TextColor3 = TEXT
-    btn.TextSize = 10
-    btn.Font = Enum.Font.GothamBold
-    btn.AutoButtonColor = false
-    btn.ZIndex = 306
-    btn.Parent = tabHolder
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = btn
-
-    return btn
-end
-
-local waypointTabBtn = createNavTab("📍 Way", 0)
-local interactTabBtn = createNavTab("⚡ Act", tabWidth + 3)
-local hopTabBtn = createNavTab("🎯 Hop", (tabWidth + 3) * 2)
-local graphicsTabBtn = createNavTab("🎨 Gfx", (tabWidth + 3) * 3)
-
-waypointTabBtn.BackgroundColor3 = ON_COLOR
-
--- SCROLLING PAGES
-local function createPageFrame()
-    local p = Instance.new("ScrollingFrame")
-    p.Size = UDim2.new(1, -20, 1, -95)
-    p.Position = UDim2.fromOffset(10, 90)
-    p.BackgroundTransparency = 1
-    p.BorderSizePixel = 0
-    p.ScrollBarThickness = 5
-    p.ScrollBarImageTransparency = 0.2
-    p.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 110)
-    p.ScrollingDirection = Enum.ScrollingDirection.Y
-    p.Active = true
-    p.ClipsDescendants = true
-    p.ZIndex = 305
-    p.Parent = frame
-    return p
-end
-
-local waypointPage = createPageFrame()
-local interactPage = createPageFrame()
-local hopPage = createPageFrame()
-local graphicsPage = createPageFrame()
-
-interactPage.Visible = false
-hopPage.Visible = false
-graphicsPage.Visible = false
-
--- FUNGSI PERGANTIAN TAB
-local isSwitchingTab = false
-local function switchTab(selectedPage, selectedBtn)
-    if isSwitchingTab or selectedPage.Visible then return end
-    isSwitchingTab = true
-
-    waypointTabBtn.BackgroundColor3 = BUTTON
-    interactTabBtn.BackgroundColor3 = BUTTON
-    hopTabBtn.BackgroundColor3 = BUTTON
-    graphicsTabBtn.BackgroundColor3 = BUTTON
-
-    selectedBtn.BackgroundColor3 = ON_COLOR
-
-    local pages = {waypointPage, interactPage, hopPage, graphicsPage}
-    for _, p in ipairs(pages) do
-        if p.Visible then
-            local tOut = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            TweenService:Create(p, tOut, {Position = UDim2.fromOffset(10, 105)}):Play()
-            task.wait(0.1)
-            p.Visible = false
+-- LOGIKA DRAGGING
+local function enableDrag(dragObj, targetObj)
+    local dragging, dragStart, startPos = false, nil, nil
+    dragObj.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = targetObj.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
         end
-    end
-
-    selectedPage.Position = UDim2.fromOffset(10, 75)
-    selectedPage.Visible = true
-    local tIn = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    local tTween = TweenService:Create(selectedPage, tIn, {Position = UDim2.fromOffset(10, 90)})
-    tTween:Play()
-    tTween.Completed:Connect(function()
-        isSwitchingTab = false
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            targetObj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
     end)
 end
 
-waypointTabBtn.MouseButton1Click:Connect(function() switchTab(waypointPage, waypointTabBtn) end)
-interactTabBtn.MouseButton1Click:Connect(function() switchTab(interactPage, interactTabBtn) end)
-hopTabBtn.MouseButton1Click:Connect(function() switchTab(hopPage, hopTabBtn) end)
-graphicsTabBtn.MouseButton1Click:Connect(function() switchTab(graphicsPage, graphicsTabBtn) end)
+enableDrag(titleLabel, frame)
+enableDrag(dragButton, frame)
+
+-- SIDEBAR & CONTENT AREA
+local sidebar = Instance.new("Frame")
+sidebar.Name = "Sidebar"
+sidebar.Size = UDim2.new(0, 115, 1, -45)
+sidebar.Position = UDim2.fromOffset(8, 40)
+sidebar.BackgroundTransparency = 1
+sidebar.ZIndex = 110
+sidebar.Parent = frame
+
+local contentArea = Instance.new("Frame")
+contentArea.Name = "ContentArea"
+contentArea.Size = UDim2.new(1, -133, 1, -45)
+contentArea.Position = UDim2.fromOffset(125, 40)
+contentArea.BackgroundTransparency = 1
+contentArea.ClipsDescendants = true
+contentArea.ZIndex = 110
+contentArea.Parent = frame
+
+local tabButtons = {}
+local categoryData = {
+    { id = "Way", icon = "📍", name = "Way" },
+    { id = "Act", icon = "⚡", name = "Act" },
+    { id = "Hop", icon = "🎯", name = "Hop" },
+    { id = "Gfx", icon = "🎨", name = "Gfx" }
+}
+
+compactButton.MouseButton1Click:Connect(function()
+    if isAnimating then return end
+    isAnimating = true
+    isCompact = not isCompact
+
+    local targetWidth = isCompact and COMPACT_WIDTH or NORMAL_WIDTH
+    local targetSidebarWidth = isCompact and 42 or 115
+    local targetContentOffset = isCompact and 58 or 125
+    local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+
+    local tweenFrame = TweenService:Create(frame, tweenInfo, { Size = UDim2.fromOffset(targetWidth, MENU_HEIGHT) })
+    local tweenSidebar = TweenService:Create(sidebar, tweenInfo, { Size = UDim2.new(0, targetSidebarWidth, 1, -45) })
+    local tweenContent = TweenService:Create(contentArea, tweenInfo, { 
+        Size = UDim2.new(1, -(targetContentOffset + 8), 1, -45),
+        Position = UDim2.fromOffset(targetContentOffset, 40)
+    })
+
+    tweenFrame:Play()
+    tweenSidebar:Play()
+    tweenContent:Play()
+
+    for _, btn in pairs(tabButtons) do
+        local data = btn.Data
+        btn.Button.Text = isCompact and data.icon or (data.icon .. "  " .. data.name)
+    end
+
+    titleLabel.Text = isCompact and "STRN BP" or "STRN BP MENU"
+    tweenFrame.Completed:Connect(function() isAnimating = false end)
+end)
+
+local function createPage()
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.ScrollBarThickness = 3
+    page.ScrollBarImageColor3 = Color3.fromRGB(90, 90, 105)
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.Visible = false
+    page.ZIndex = 115
+    page.Parent = contentArea
+    return page
+end
+
+local pages = {
+    Way = createPage(),
+    Act = createPage(),
+    Hop = createPage(),
+    Gfx = createPage()
+}
+
+for i, cat in ipairs(categoryData) do
+    local tabBtn = Instance.new("TextButton")
+    tabBtn.Size = UDim2.new(1, 0, 0, 36)
+    tabBtn.Position = UDim2.fromOffset(0, (i - 1) * 42)
+    tabBtn.BackgroundColor3 = (i == 1) and ACCENT_BLUE or BUTTON_BG
+    tabBtn.BorderSizePixel = 0
+    tabBtn.Text = cat.icon .. "  " .. cat.name
+    tabBtn.TextColor3 = TEXT_MAIN
+    tabBtn.TextSize = 12
+    tabBtn.Font = Enum.Font.GothamBold
+    tabBtn.AutoButtonColor = false
+    tabBtn.ZIndex = 112
+    tabBtn.Parent = sidebar
+
+    local tabCorner = Instance.new("UICorner")
+    tabCorner.CornerRadius = UDim.new(0, 8)
+    tabCorner.Parent = tabBtn
+
+    table.insert(tabButtons, { Button = tabBtn, Data = cat })
+
+    tabBtn.MouseButton1Click:Connect(function()
+        for _, btnObj in ipairs(tabButtons) do btnObj.Button.BackgroundColor3 = BUTTON_BG end
+        tabBtn.BackgroundColor3 = ACCENT_BLUE
+        for name, pg in pairs(pages) do pg.Visible = (name == cat.id) end
+    end)
+end
+
+-- HELPER UI BUILDERS WITH PERSISTENT GLOBAL TOGGLE STATE + TOAST
+local function createCategoryLabel(parent, text, yPosition)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -6, 0, 22)
+    lbl.Position = UDim2.fromOffset(0, yPosition)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.TextColor3 = YELLOW
+    lbl.TextSize = 10
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.ZIndex = 116
+    lbl.Parent = parent
+    return lbl
+end
+
+local function addToggleRow(parent, titleText, descText, yPos, callback)
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, -6, 0, 48)
+    card.Position = UDim2.fromOffset(0, yPos)
+    card.BackgroundColor3 = CARD_BG
+    card.BorderSizePixel = 0
+    card.ZIndex = 116
+    card.Parent = parent
+
+    local cardCorner = Instance.new("UICorner")
+    cardCorner.CornerRadius = UDim.new(0, 8)
+    cardCorner.Parent = card
+
+    local tLbl = Instance.new("TextLabel")
+    tLbl.Size = UDim2.new(1, -65, 0, 20)
+    tLbl.Position = UDim2.fromOffset(10, 4)
+    tLbl.BackgroundTransparency = 1
+    tLbl.Text = titleText
+    tLbl.TextColor3 = TEXT_MAIN
+    tLbl.TextSize = 11
+    tLbl.Font = Enum.Font.GothamBold
+    tLbl.TextXAlignment = Enum.TextXAlignment.Left
+    tLbl.ZIndex = 117
+    tLbl.Parent = card
+
+    local dLbl = Instance.new("TextLabel")
+    dLbl.Size = UDim2.new(1, -65, 0, 16)
+    dLbl.Position = UDim2.fromOffset(10, 24)
+    dLbl.BackgroundTransparency = 1
+    dLbl.Text = descText or ""
+    dLbl.TextColor3 = TEXT_SUB
+    dLbl.TextSize = 9
+    dLbl.Font = Enum.Font.Gotham
+    dLbl.TextXAlignment = Enum.TextXAlignment.Left
+    dLbl.ZIndex = 117
+    dLbl.Parent = card
+
+    local sw = Instance.new("TextButton")
+    sw.Size = UDim2.fromOffset(45, 22)
+    sw.Position = UDim2.new(1, -52, 0.5, -11)
+    sw.BackgroundColor3 = BUTTON_BG
+    sw.Text = "OFF"
+    sw.TextColor3 = ACCENT_RED
+    sw.TextSize = 10
+    sw.Font = Enum.Font.GothamBold
+    sw.AutoButtonColor = false
+    sw.ZIndex = 118
+    sw.Parent = card
+
+    local swCorner = Instance.new("UICorner")
+    swCorner.CornerRadius = UDim.new(0, 11)
+    swCorner.Parent = sw
+
+    local stateKey = "Toggle_" .. titleText
+    if ToggleStates[stateKey] == nil then
+        ToggleStates[stateKey] = false
+    end
+    local state = ToggleStates[stateKey]
+
+    local function refreshVisual(st)
+        sw.Text = st and "ON" or "OFF"
+        sw.TextColor3 = st and ACCENT_GREEN or ACCENT_RED
+        sw.BackgroundColor3 = st and ACCENT_BLUE or BUTTON_BG
+    end
+
+    refreshVisual(state)
+
+    if state and callback then
+        task.spawn(function() callback(true) end)
+    end
+
+    sw.MouseButton1Click:Connect(function()
+        state = not state
+        ToggleStates[stateKey] = state
+        refreshVisual(state)
+        showToast(titleText, state and "Status: Enabled" or "Status: Disabled", state and ACCENT_GREEN or ACCENT_RED)
+        if callback then task.spawn(function() callback(state) end) end
+    end)
+end
 
 local function createStandardBtn(parent, text, yPos)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 40)
-    btn.Position = UDim2.fromOffset(5, yPos)
-    btn.BackgroundColor3 = BUTTON
+    btn.Size = UDim2.new(1, -6, 0, 34)
+    btn.Position = UDim2.fromOffset(0, yPos)
+    btn.BackgroundColor3 = BUTTON_BG
     btn.BorderSizePixel = 0
     btn.Text = text
-    btn.TextColor3 = TEXT
-    btn.TextSize = 12
+    btn.TextColor3 = TEXT_MAIN
+    btn.TextSize = 10
     btn.Font = Enum.Font.GothamBold
-    btn.ZIndex = 315
+    btn.ZIndex = 116
     btn.Parent = parent
 
     local corner = Instance.new("UICorner")
@@ -336,160 +529,53 @@ local function createStandardBtn(parent, text, yPos)
     return btn
 end
 
-local function createCategoryLabel(parent, text, yPosition)
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, -10, 0, 24)
-    lbl.Position = UDim2.fromOffset(5, yPosition)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = text
-    lbl.TextColor3 = YELLOW
-    lbl.TextSize = 11
-    lbl.Font = Enum.Font.GothamBold
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.ZIndex = 315
-    lbl.Parent = parent
-    return lbl
-end
-
-local function createToggleRow(parent, titleText, descText, yPosition, callback)
-    local card = Instance.new("Frame")
-    card.Size = UDim2.new(1, -10, 0, 52)
-    card.Position = UDim2.fromOffset(5, yPosition)
-    card.BackgroundColor3 = CARD_BG
-    card.BorderSizePixel = 0
-    card.ZIndex = 315
-    card.Parent = parent
-
-    local cardCorner = Instance.new("UICorner")
-    cardCorner.CornerRadius = UDim.new(0, 10)
-    cardCorner.Parent = card
-
-    local titleLbl = Instance.new("TextLabel")
-    titleLbl.Size = UDim2.new(1, -75, 0, 22)
-    titleLbl.Position = UDim2.fromOffset(12, 6)
-    titleLbl.BackgroundTransparency = 1
-    titleLbl.Text = titleText
-    titleLbl.TextColor3 = TEXT
-    titleLbl.TextSize = 13
-    titleLbl.Font = Enum.Font.GothamBold
-    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
-    titleLbl.ZIndex = 316
-    titleLbl.Parent = card
-
-    local descLbl = Instance.new("TextLabel")
-    descLbl.Size = UDim2.new(1, -75, 0, 16)
-    descLbl.Position = UDim2.fromOffset(12, 28)
-    descLbl.BackgroundTransparency = 1
-    descLbl.Text = descText
-    descLbl.TextColor3 = SUBTEXT
-    descLbl.TextSize = 10
-    descLbl.Font = Enum.Font.GothamMedium
-    descLbl.TextXAlignment = Enum.TextXAlignment.Left
-    descLbl.ZIndex = 316
-    descLbl.Parent = card
-
-    local switchBtn = Instance.new("TextButton")
-    switchBtn.Size = UDim2.fromOffset(55, 28)
-    switchBtn.Position = UDim2.new(1, -63, 0.5, -14)
-    switchBtn.BorderSizePixel = 0
-    switchBtn.TextSize = 10
-    switchBtn.Font = Enum.Font.GothamBold
-    switchBtn.ZIndex = 317
-    switchBtn.Parent = card
-
-    local switchCorner = Instance.new("UICorner")
-    switchCorner.CornerRadius = UDim.new(0, 14)
-    switchCorner.Parent = switchBtn
-
-    local stateKey = "Toggle_" .. titleText
-    if ToggleStates[stateKey] == nil then
-        ToggleStates[stateKey] = false
-    end
-    local state = ToggleStates[stateKey]
-
-    local function refreshVisual(st)
-        if st then
-            switchBtn.Text = "ON"
-            switchBtn.TextColor3 = GREEN
-            switchBtn.BackgroundColor3 = ON_COLOR
-        else
-            switchBtn.Text = "OFF"
-            switchBtn.TextColor3 = RED
-            switchBtn.BackgroundColor3 = BUTTON
-        end
-    end
-
-    refreshVisual(state)
-
-    if state and callback then
-        task.spawn(function()
-            callback(true)
-        end)
-    end
-
-    switchBtn.MouseButton1Click:Connect(function()
-        state = not state
-        ToggleStates[stateKey] = state
-        refreshVisual(state)
-
-        if callback then
-            task.spawn(function()
-                callback(state)
-            end)
-        end
-    end)
-end
-
 -- ============================================================
--- 1. WAYPOINT PAGE CONTENT
+-- 1. TAB WAY (WAYPOINT FILE STORAGE & RENAME)
 -- ============================================================
+local wayPage = pages.Way
+
 local nameInput = Instance.new("TextBox")
-nameInput.Size = UDim2.new(1, -10, 0, 38)
-nameInput.Position = UDim2.fromOffset(5, 5)
-nameInput.BackgroundColor3 = BUTTON
-nameInput.BorderSizePixel = 0
+nameInput.Size = UDim2.new(1, -6, 0, 36)
+nameInput.Position = UDim2.fromOffset(0, 0)
+nameInput.BackgroundColor3 = CARD_BG
 nameInput.Text = ""
 nameInput.PlaceholderText = "Ketik nama lokasi..."
-nameInput.PlaceholderColor3 = SUBTEXT
-nameInput.TextColor3 = TEXT
-nameInput.TextSize = 13
+nameInput.PlaceholderColor3 = TEXT_SUB
+nameInput.TextColor3 = TEXT_MAIN
+nameInput.TextSize = 11
 nameInput.Font = Enum.Font.GothamMedium
-nameInput.ClearTextOnFocus = true
-nameInput.ZIndex = 315
-nameInput.Parent = waypointPage
+nameInput.ZIndex = 116
+nameInput.Parent = wayPage
 
 local inputCorner = Instance.new("UICorner")
 inputCorner.CornerRadius = UDim.new(0, 8)
 inputCorner.Parent = nameInput
 
 local saveBtn = Instance.new("TextButton")
-saveBtn.Size = UDim2.new(1, -10, 0, 42)
-saveBtn.Position = UDim2.fromOffset(5, 50)
-saveBtn.BackgroundColor3 = ON_COLOR
-saveBtn.BorderSizePixel = 0
+saveBtn.Size = UDim2.new(1, -6, 0, 36)
+saveBtn.Position = UDim2.fromOffset(0, 42)
+saveBtn.BackgroundColor3 = ACCENT_BLUE
 saveBtn.Text = "➕ Simpan Koordinat Saat Ini"
-saveBtn.TextColor3 = TEXT
-saveBtn.TextSize = 13
+saveBtn.TextColor3 = TEXT_MAIN
+saveBtn.TextSize = 11
 saveBtn.Font = Enum.Font.GothamBold
 saveBtn.AutoButtonColor = false
-saveBtn.ZIndex = 315
-saveBtn.Parent = waypointPage
+saveBtn.ZIndex = 116
+saveBtn.Parent = wayPage
 
 local saveCorner = Instance.new("UICorner")
 saveCorner.CornerRadius = UDim.new(0, 8)
 saveCorner.Parent = saveBtn
 
 local wayList = Instance.new("Frame")
-wayList.Name = "WaypointList"
-wayList.Position = UDim2.fromOffset(5, 100)
-wayList.Size = UDim2.new(1, -10, 0, 0)
+wayList.Position = UDim2.fromOffset(0, 84)
+wayList.Size = UDim2.new(1, -6, 0, 0)
 wayList.BackgroundTransparency = 1
-wayList.ZIndex = 315
-wayList.Parent = waypointPage
+wayList.ZIndex = 116
+wayList.Parent = wayPage
 
 local wayLayout = Instance.new("UIListLayout")
 wayLayout.Padding = UDim.new(0, 6)
-wayLayout.SortOrder = Enum.SortOrder.Name
 wayLayout.Parent = wayList
 
 local function refreshWaypointList()
@@ -499,11 +585,10 @@ local function refreshWaypointList()
 
     for name, pos in pairs(waypoints) do
         local row = Instance.new("Frame")
-        row.Name = name
-        row.Size = UDim2.new(1, 0, 0, 45)
-        row.BackgroundColor3 = BUTTON
+        row.Size = UDim2.new(1, 0, 0, 40)
+        row.BackgroundColor3 = CARD_BG
         row.BorderSizePixel = 0
-        row.ZIndex = 316
+        row.ZIndex = 117
         row.Parent = wayList
 
         local rowCorner = Instance.new("UICorner")
@@ -511,28 +596,27 @@ local function refreshWaypointList()
         rowCorner.Parent = row
 
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, -140, 1, 0)
-        label.Position = UDim2.fromOffset(10, 0)
+        label.Size = UDim2.new(1, -125, 1, 0)
+        label.Position = UDim2.fromOffset(8, 0)
         label.BackgroundTransparency = 1
         label.Text = "📍 " .. name
-        label.TextColor3 = TEXT
-        label.TextSize = 12
+        label.TextColor3 = TEXT_MAIN
+        label.TextSize = 10
         label.Font = Enum.Font.GothamBold
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.TextTruncate = Enum.TextTruncate.AtEnd
-        label.ZIndex = 317
+        label.ZIndex = 118
         label.Parent = row
 
         local tpBtn = Instance.new("TextButton")
-        tpBtn.Size = UDim2.fromOffset(40, 30)
-        tpBtn.Position = UDim2.new(1, -125, 0.5, -15)
-        tpBtn.BackgroundColor3 = ON_COLOR
-        tpBtn.BorderSizePixel = 0
+        tpBtn.Size = UDim2.fromOffset(32, 24)
+        tpBtn.Position = UDim2.new(1, -112, 0.5, -12)
+        tpBtn.BackgroundColor3 = ACCENT_BLUE
         tpBtn.Text = "TP"
-        tpBtn.TextColor3 = TEXT
-        tpBtn.TextSize = 11
+        tpBtn.TextColor3 = TEXT_MAIN
+        tpBtn.TextSize = 9
         tpBtn.Font = Enum.Font.GothamBold
-        tpBtn.ZIndex = 318
+        tpBtn.ZIndex = 119
         tpBtn.Parent = row
 
         local tpCorner = Instance.new("UICorner")
@@ -540,15 +624,14 @@ local function refreshWaypointList()
         tpCorner.Parent = tpBtn
 
         local editBtn = Instance.new("TextButton")
-        editBtn.Size = UDim2.fromOffset(35, 30)
-        editBtn.Position = UDim2.new(1, -80, 0.5, -15)
-        editBtn.BackgroundColor3 = BUTTON_HOVER
-        editBtn.BorderSizePixel = 0
+        editBtn.Size = UDim2.fromOffset(32, 24)
+        editBtn.Position = UDim2.new(1, -74, 0.5, -12)
+        editBtn.BackgroundColor3 = BUTTON_BG
         editBtn.Text = "✏️"
-        editBtn.TextColor3 = TEXT
-        editBtn.TextSize = 11
+        editBtn.TextColor3 = TEXT_MAIN
+        editBtn.TextSize = 9
         editBtn.Font = Enum.Font.GothamBold
-        editBtn.ZIndex = 318
+        editBtn.ZIndex = 119
         editBtn.Parent = row
 
         local editCorner = Instance.new("UICorner")
@@ -556,15 +639,14 @@ local function refreshWaypointList()
         editCorner.Parent = editBtn
 
         local delBtn = Instance.new("TextButton")
-        delBtn.Size = UDim2.fromOffset(35, 30)
-        delBtn.Position = UDim2.new(1, -40, 0.5, -15)
-        delBtn.BackgroundColor3 = RED
-        delBtn.BorderSizePixel = 0
+        delBtn.Size = UDim2.fromOffset(32, 24)
+        delBtn.Position = UDim2.new(1, -36, 0.5, -12)
+        delBtn.BackgroundColor3 = ACCENT_RED
         delBtn.Text = "🗑️"
-        delBtn.TextColor3 = TEXT
-        delBtn.TextSize = 11
+        delBtn.TextColor3 = TEXT_MAIN
+        delBtn.TextSize = 9
         delBtn.Font = Enum.Font.GothamBold
-        delBtn.ZIndex = 318
+        delBtn.ZIndex = 119
         delBtn.Parent = row
 
         local delCorner = Instance.new("UICorner")
@@ -575,37 +657,32 @@ local function refreshWaypointList()
             local root = getRoot()
             if root and pos then
                 root.CFrame = CFrame.new(pos.X, pos.Y, pos.Z)
+                showToast("Teleport Waypoint", "Teleport ke " .. name, ACCENT_BLUE)
             end
         end)
 
         editBtn.MouseButton1Click:Connect(function()
             if row:FindFirstChild("RenameInput") then return end
-
             local renameInput = Instance.new("TextBox")
             renameInput.Name = "RenameInput"
-            renameInput.Size = UDim2.new(1, -135, 0, 30)
-            renameInput.Position = UDim2.fromOffset(8, 7)
-            renameInput.BackgroundColor3 = BG
-            renameInput.BorderSizePixel = 0
+            renameInput.Size = UDim2.new(1, -120, 0, 26)
+            renameInput.Position = UDim2.fromOffset(6, 7)
+            renameInput.BackgroundColor3 = BUTTON_BG
             renameInput.Text = name
-            renameInput.TextColor3 = TEXT
-            renameInput.TextSize = 12
+            renameInput.TextColor3 = TEXT_MAIN
+            renameInput.TextSize = 10
             renameInput.Font = Enum.Font.GothamBold
-            renameInput.ZIndex = 325
+            renameInput.ZIndex = 125
             renameInput.Parent = row
 
-            local rCorner = Instance.new("UICorner")
-            rCorner.CornerRadius = UDim.new(0, 6)
-            rCorner.Parent = renameInput
-
             label.Visible = false
-
-            renameInput.FocusLost:Connect(function(enterPressed)
+            renameInput.FocusLost:Connect(function()
                 local newName = renameInput.Text:gsub("^%s*(.-)%s*$", "%1")
                 if newName ~= "" and newName ~= name then
                     waypoints[newName] = waypoints[name]
                     waypoints[name] = nil
                     saveWaypoints()
+                    showToast("Rename Waypoint", "Nama diubah ke " .. newName, ACCENT_GREEN)
                 end
                 refreshWaypointList()
             end)
@@ -615,45 +692,42 @@ local function refreshWaypointList()
         delBtn.MouseButton1Click:Connect(function()
             waypoints[name] = nil
             saveWaypoints()
+            showToast("Hapus Waypoint", name .. " dihapus", ACCENT_RED)
             refreshWaypointList()
         end)
     end
 
     task.wait()
-    local contentHeight = math.max(wayLayout.AbsoluteContentSize.Y, 50)
-    wayList.Size = UDim2.new(1, -10, 0, contentHeight)
-    waypointPage.CanvasSize = UDim2.new(0, 0, 0, 110 + contentHeight)
+    local contentHeight = math.max(wayLayout.AbsoluteContentSize.Y, 40)
+    wayList.Size = UDim2.new(1, -6, 0, contentHeight)
+    wayPage.CanvasSize = UDim2.new(0, 0, 0, 90 + contentHeight)
 end
 
 saveBtn.MouseButton1Click:Connect(function()
     local root = getRoot()
     if not root then return end
-
     local inputName = nameInput.Text
     if not inputName or inputName:gsub("%s+", "") == "" then
         local count = 0
         for _ in pairs(waypoints) do count = count + 1 end
         inputName = "Posisi_" .. tostring(count + 1)
     end
-
-    waypoints[inputName] = {
-        X = root.CFrame.X,
-        Y = root.CFrame.Y,
-        Z = root.CFrame.Z
-    }
-
+    waypoints[inputName] = { X = root.CFrame.X, Y = root.CFrame.Y, Z = root.CFrame.Z }
     nameInput.Text = ""
     saveWaypoints()
+    showToast("Waypoint Disimpan", "Lokasi: " .. inputName, ACCENT_GREEN)
     refreshWaypointList()
 end)
 
 -- ============================================================
--- 2. FAST INTERACT & GROUPED ESP PAGE CONTENT
+-- 2. TAB ACT (INSTANT PROMPT & GROUPED ESP LOGIC)
 -- ============================================================
-createCategoryLabel(interactPage, "[ UTILITY & INTERACT ]", 5)
+local actPage = pages.Act
+
+createCategoryLabel(actPage, "[ UTILITY & INTERACT ]", 0)
 
 local autoPromptConn = nil
-createToggleRow(interactPage, "⚡ Instant Prompt", "Interaksi tanpa waktu tahan (Hold = 0)", 30, function(isOn)
+addToggleRow(actPage, "⚡ Instant Prompt", "Interaksi tanpa waktu tahan (Hold = 0)", 24, function(isOn)
     if isOn then
         autoPromptConn = workspace.DescendantAdded:Connect(function(obj)
             if obj:IsA("ProximityPrompt") then obj.HoldDuration = 0 end
@@ -662,36 +736,26 @@ createToggleRow(interactPage, "⚡ Instant Prompt", "Interaksi tanpa waktu tahan
             if obj:IsA("ProximityPrompt") then obj.HoldDuration = 0 end
         end
     else
-        if autoPromptConn then
-            autoPromptConn:Disconnect()
-            autoPromptConn = nil
-        end
+        if autoPromptConn then autoPromptConn:Disconnect() autoPromptConn = nil end
     end
 end)
 
-createCategoryLabel(interactPage, "[ PLAYER ESP & GLOW ]", 88)
+createCategoryLabel(actPage, "[ PLAYER ESP & GLOW ]", 78)
 
 -- 1. NAME ESP
-local nameEspActive = false
 local nameEspConn = nil
 local nameBillboards = {}
-
 local function removeNameESP(target)
-    if nameBillboards[target] then
-        pcall(function() nameBillboards[target]:Destroy() end)
-        nameBillboards[target] = nil
-    end
+    if nameBillboards[target] then pcall(function() nameBillboards[target]:Destroy() end) nameBillboards[target] = nil end
 end
 
 local function addNameESP(target)
     removeNameESP(target)
     if target == Player then return end
-
     local function setupChar(char)
         removeNameESP(target)
         local head = char:WaitForChild("Head", 3)
         if not head then return end
-
         local billboard = Instance.new("BillboardGui")
         billboard.Name = "STRN_NameESP"
         billboard.Adornee = head
@@ -711,18 +775,14 @@ local function addNameESP(target)
         nameLabel.TextStrokeTransparency = 0.1
         nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         nameLabel.Parent = billboard
-
         nameBillboards[target] = billboard
     end
-
     if target.Character then setupChar(target.Character) end
     target.CharacterAdded:Connect(setupChar)
 end
 
-createToggleRow(interactPage, "👁️ Name ESP", "Menampilkan nama player lain", 113, function(isOn)
-    nameEspActive = isOn
-    if nameEspConn then nameEspConn:Disconnect(); nameEspConn = nil end
-
+addToggleRow(actPage, "👁️ Name ESP", "Menampilkan nama player lain", 102, function(isOn)
+    if nameEspConn then nameEspConn:Disconnect() nameEspConn = nil end
     if isOn then
         for _, p in ipairs(Players:GetPlayers()) do addNameESP(p) end
         nameEspConn = Players.PlayerAdded:Connect(addNameESP)
@@ -732,7 +792,6 @@ createToggleRow(interactPage, "👁️ Name ESP", "Menampilkan nama player lain"
 end)
 
 -- 2. BOX & TRACER ESP
-local tracerEspActive = false
 local tracerConn = nil
 local activeTracers = {}
 
@@ -746,22 +805,18 @@ local function removeTracer(target)
     end
 end
 
-createToggleRow(interactPage, "📦 Box & Tracer ESP", "Kotak & Garis dari tengah atas ke player", 170, function(isOn)
-    tracerEspActive = isOn
-    if tracerConn then tracerConn:Disconnect(); tracerConn = nil end
-
+addToggleRow(actPage, "📦 Box & Tracer ESP", "Kotak & Garis ke player lain", 156, function(isOn)
+    if tracerConn then tracerConn:Disconnect() tracerConn = nil end
     if not isOn then
         for _, p in ipairs(Players:GetPlayers()) do removeTracer(p) end
         return
     end
-
     tracerConn = RunService.RenderStepped:Connect(function()
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= Player and p.Character then
                 local char = p.Character
                 local root = char:FindFirstChild("HumanoidRootPart")
                 local hum = char:FindFirstChildOfClass("Humanoid")
-                
                 if root and hum and hum.Health > 0 then
                     local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
                     if onScreen then
@@ -770,76 +825,45 @@ createToggleRow(interactPage, "📦 Box & Tracer ESP", "Kotak & Garis dari tenga
                             box.Visible = false
                             box.Color = Color3.fromRGB(255, 50, 50)
                             box.Thickness = 1.5
-                            box.Filled = false
-
                             local line = Drawing.new("Line")
                             line.Visible = false
                             line.Color = Color3.fromRGB(255, 50, 50)
                             line.Thickness = 1.5
-
                             activeTracers[p] = { Box = box, Line = line }
                         end
-
                         local data = activeTracers[p]
                         local head = char:FindFirstChild("Head")
                         if head then
-                            local topScreen, topOnScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.8, 0))
-                            local botScreen, botOnScreen = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                            local topScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.8, 0))
+                            local botScreen = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                            local height = math.abs(topScreen.Y - botScreen.Y)
+                            local width = height * 0.6
+                            data.Box.Size = Vector2.new(width, height)
+                            data.Box.Position = Vector2.new(topScreen.X - width / 2, topScreen.Y)
+                            data.Box.Visible = true
 
-                            if topOnScreen or botOnScreen then
-                                local height = math.abs(topScreen.Y - botScreen.Y)
-                                local width = height * 0.6
-                                
-                                data.Box.Size = Vector2.new(width, height)
-                                data.Box.Position = Vector2.new(topScreen.X - width / 2, topScreen.Y)
-                                data.Box.Visible = true
-
-                                data.Line.From = Vector2.new(Camera.ViewportSize.X / 2, 0)
-                                data.Line.To = Vector2.new(topScreen.X, topScreen.Y)
-                                data.Line.Visible = true
-                            else
-                                data.Box.Visible = false
-                                data.Line.Visible = false
-                            end
-                        else
-                            data.Box.Visible = false
-                            data.Line.Visible = false
+                            data.Line.From = Vector2.new(Camera.ViewportSize.X / 2, 0)
+                            data.Line.To = Vector2.new(topScreen.X, topScreen.Y)
+                            data.Line.Visible = true
                         end
-                    else
-                        if activeTracers[p] then
-                            activeTracers[p].Box.Visible = false
-                            activeTracers[p].Line.Visible = false
-                        end
-                    end
-                else
-                    if activeTracers[p] then
-                        activeTracers[p].Box.Visible = false
-                        activeTracers[p].Line.Visible = false
-                    end
-                end
-            else
-                removeTracer(p)
-            end
+                    else removeTracer(p) end
+                else removeTracer(p) end
+            else removeTracer(p) end
         end
     end)
 end)
 
--- 3. RED CHARACTER HIGHLIGHT GLOW
-local redGlowActive = false
+-- 3. RED CHARACTER GLOW
 local redGlowConn = nil
 local charHighlights = {}
 
 local function removeRedGlow(target)
-    if charHighlights[target] then
-        pcall(function() charHighlights[target]:Destroy() end)
-        charHighlights[target] = nil
-    end
+    if charHighlights[target] then pcall(function() charHighlights[target]:Destroy() end) charHighlights[target] = nil end
 end
 
 local function addRedGlow(target)
     removeRedGlow(target)
     if target == Player then return end
-
     local function setupChar(char)
         removeRedGlow(target)
         local hl = Instance.new("Highlight")
@@ -848,20 +872,15 @@ local function addRedGlow(target)
         hl.FillColor = Color3.fromRGB(255, 40, 40)
         hl.OutlineColor = Color3.fromRGB(255, 255, 255)
         hl.FillTransparency = 0.4
-        hl.OutlineTransparency = 0.2
         hl.Parent = char
-
         charHighlights[target] = hl
     end
-
     if target.Character then setupChar(target.Character) end
     target.CharacterAdded:Connect(setupChar)
 end
 
-createToggleRow(interactPage, "🔴 Red Character Glow", "Mengubah warna avatar player lain menjadi merah", 227, function(isOn)
-    redGlowActive = isOn
-    if redGlowConn then redGlowConn:Disconnect(); redGlowConn = nil end
-
+addToggleRow(actPage, "🔴 Red Character Glow", "Mengubah warna avatar player lain", 210, function(isOn)
+    if redGlowConn then redGlowConn:Disconnect() redGlowConn = nil end
     if isOn then
         for _, p in ipairs(Players:GetPlayers()) do addRedGlow(p) end
         redGlowConn = Players.PlayerAdded:Connect(addRedGlow)
@@ -876,142 +895,90 @@ Players.PlayerRemoving:Connect(function(p)
     removeRedGlow(p)
 end)
 
-interactPage.CanvasSize = UDim2.new(0, 0, 0, 290)
+actPage.CanvasSize = UDim2.new(0, 0, 0, 268)
 
 -- ============================================================
--- 3. SERVER HOP PAGE CONTENT (WITH EXACT MATCH TOGGLE)
+-- 3. TAB HOP (DEEP SCAN, EXACT MATCH, AUTO HOP, REJOIN PREV)
 -- ============================================================
-local hopTitle = Instance.new("TextLabel")
-hopTitle.Size = UDim2.new(1, -10, 0, 30)
-hopTitle.Position = UDim2.fromOffset(5, 0)
-hopTitle.BackgroundTransparency = 1
-hopTitle.Text = "🎯 ServerHop"
-hopTitle.TextColor3 = TEXT
-hopTitle.TextSize = 20
-hopTitle.Font = Enum.Font.GothamBold
-hopTitle.TextXAlignment = Enum.TextXAlignment.Left
-hopTitle.ZIndex = 315
-hopTitle.Parent = hopPage
+local hopPage = pages.Hop
 
 local maxPlayerLabel = Instance.new("TextLabel")
-maxPlayerLabel.Size = UDim2.new(1, -10, 0, 25)
-maxPlayerLabel.Position = UDim2.fromOffset(5, 35)
+maxPlayerLabel.Size = UDim2.new(1, -6, 0, 18)
+maxPlayerLabel.Position = UDim2.fromOffset(0, 0)
 maxPlayerLabel.BackgroundTransparency = 1
-maxPlayerLabel.Text = "Max Players: " .. game.Players.MaxPlayers
-maxPlayerLabel.TextColor3 = SUBTEXT
-maxPlayerLabel.TextSize = 14
+maxPlayerLabel.Text = "Max Players: " .. game.Players.MaxPlayers .. " • Current: " .. #Players:GetPlayers()
+maxPlayerLabel.TextColor3 = TEXT_SUB
+maxPlayerLabel.TextSize = 10
 maxPlayerLabel.Font = Enum.Font.GothamMedium
 maxPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
-maxPlayerLabel.ZIndex = 315
+maxPlayerLabel.ZIndex = 116
 maxPlayerLabel.Parent = hopPage
 
-local currentPlayerLabel = Instance.new("TextLabel")
-currentPlayerLabel.Size = UDim2.new(1, -10, 0, 25)
-currentPlayerLabel.Position = UDim2.fromOffset(5, 65)
-currentPlayerLabel.BackgroundTransparency = 1
-currentPlayerLabel.Text = "Current Players: " .. #Players:GetPlayers()
-currentPlayerLabel.TextColor3 = SUBTEXT
-currentPlayerLabel.TextSize = 14
-currentPlayerLabel.Font = Enum.Font.GothamMedium
-currentPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
-currentPlayerLabel.ZIndex = 315
-currentPlayerLabel.Parent = hopPage
-
 Players.PlayerAdded:Connect(function()
-    currentPlayerLabel.Text = "Current Players: " .. #Players:GetPlayers()
+    maxPlayerLabel.Text = "Max Players: " .. game.Players.MaxPlayers .. " • Current: " .. #Players:GetPlayers()
 end)
 Players.PlayerRemoving:Connect(function()
-    currentPlayerLabel.Text = "Current Players: " .. #Players:GetPlayers()
+    maxPlayerLabel.Text = "Max Players: " .. game.Players.MaxPlayers .. " • Current: " .. #Players:GetPlayers()
 end)
-
-local inputLabel = Instance.new("TextLabel")
-inputLabel.Size = UDim2.new(1, -10, 0, 22)
-inputLabel.Position = UDim2.fromOffset(5, 95)
-inputLabel.BackgroundTransparency = 1
-inputLabel.Text = "Masukkan jumlah player:"
-inputLabel.TextColor3 = TEXT
-inputLabel.TextSize = 14
-inputLabel.Font = Enum.Font.GothamMedium
-inputLabel.TextXAlignment = Enum.TextXAlignment.Left
-inputLabel.ZIndex = 315
-inputLabel.Parent = hopPage
 
 local targetInput = Instance.new("TextBox")
-targetInput.Size = UDim2.new(1, -20, 0, 40)
-targetInput.Position = UDim2.fromOffset(10, 120)
-targetInput.BackgroundColor3 = BUTTON
-targetInput.BorderSizePixel = 0
+targetInput.Size = UDim2.new(1, -6, 0, 34)
+targetInput.Position = UDim2.fromOffset(0, 22)
+targetInput.BackgroundColor3 = CARD_BG
 targetInput.Text = ""
-targetInput.PlaceholderText = "Contoh: 5"
-targetInput.PlaceholderColor3 = SUBTEXT
-targetInput.TextColor3 = TEXT
-targetInput.TextSize = 16
+targetInput.PlaceholderText = "Target Player (Contoh: 5)"
+targetInput.PlaceholderColor3 = TEXT_SUB
+targetInput.TextColor3 = TEXT_MAIN
+targetInput.TextSize = 11
 targetInput.Font = Enum.Font.GothamMedium
-targetInput.ClearTextOnFocus = false
-targetInput.ZIndex = 315
+targetInput.ZIndex = 116
 targetInput.Parent = hopPage
 
-local targetInputCorner = Instance.new("UICorner")
-targetInputCorner.CornerRadius = UDim.new(0, 8)
-targetInputCorner.Parent = targetInput
+local tCorner = Instance.new("UICorner")
+tCorner.CornerRadius = UDim.new(0, 8)
+tCorner.Parent = targetInput
 
-targetInput.FocusLost:Connect(function()
-    local num = tonumber(targetInput.Text)
-    if num then
-        if num < 0 then
-            targetInput.Text = "0"
-        elseif num > game.Players.MaxPlayers then
-            targetInput.Text = tostring(game.Players.MaxPlayers)
-        end
-    end
-end)
-
--- TOGGLE KHUSUS EXACT PLAYER MATCH
 local exactMatchActive = false
-createToggleRow(hopPage, "🎯 Exact Player Match", "Hanya pilih server yang player-nya PERSIS sesuai target", 170, function(isOn)
-    exactMatchActive = isOn
+addToggleRow(hopPage, "🎯 Exact Match", "Server dengan player PERSIS target", 60, function(state)
+    exactMatchActive = state
 end)
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -10, 0, 25)
-statusLabel.Position = UDim2.fromOffset(5, 230)
+statusLabel.Size = UDim2.new(1, -6, 0, 18)
+statusLabel.Position = UDim2.fromOffset(0, 114)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Text = "Status: ✅ Siap"
-statusLabel.TextColor3 = SUBTEXT
-statusLabel.TextSize = 13
+statusLabel.TextColor3 = TEXT_SUB
+statusLabel.TextSize = 9
 statusLabel.Font = Enum.Font.Gotham
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-statusLabel.ZIndex = 315
+statusLabel.ZIndex = 116
 statusLabel.Parent = hopPage
 
 local hopBtn = Instance.new("TextButton")
-hopBtn.Size = UDim2.fromOffset((menuWidth - 40) / 2 - 5, 40)
-hopBtn.Position = UDim2.fromOffset(10, 260)
-hopBtn.BackgroundColor3 = ON_COLOR
-hopBtn.BorderSizePixel = 0
+hopBtn.Size = UDim2.new(0.48, -3, 0, 34)
+hopBtn.Position = UDim2.fromOffset(0, 134)
+hopBtn.BackgroundColor3 = ACCENT_BLUE
 hopBtn.Text = "🚀 Hop Sekali"
-hopBtn.TextColor3 = TEXT
-hopBtn.TextSize = 13
+hopBtn.TextColor3 = TEXT_MAIN
+hopBtn.TextSize = 10
 hopBtn.Font = Enum.Font.GothamBold
-hopBtn.AutoButtonColor = false
-hopBtn.ZIndex = 320
+hopBtn.ZIndex = 116
 hopBtn.Parent = hopPage
 
-local hopCorner = Instance.new("UICorner")
-hopCorner.CornerRadius = UDim.new(0, 8)
-hopCorner.Parent = hopBtn
+local hCorner = Instance.new("UICorner")
+hCorner.CornerRadius = UDim.new(0, 8)
+hCorner.Parent = hopBtn
 
 local autoHopBtn = Instance.new("TextButton")
-autoHopBtn.Size = UDim2.fromOffset((menuWidth - 40) / 2 - 5, 40)
-autoHopBtn.Position = UDim2.new(0.5, 5, 0, 260)
-autoHopBtn.BackgroundColor3 = BUTTON
-autoHopBtn.BorderSizePixel = 0
+autoHopBtn.Size = UDim2.new(0.48, -3, 0, 34)
+autoHopBtn.Position = UDim2.new(0.52, 0, 0, 134)
+autoHopBtn.BackgroundColor3 = BUTTON_BG
 autoHopBtn.Text = "🔁 Auto: OFF"
-autoHopBtn.TextColor3 = TEXT
-autoHopBtn.TextSize = 13
+autoHopBtn.TextColor3 = TEXT_MAIN
+autoHopBtn.TextSize = 10
 autoHopBtn.Font = Enum.Font.GothamBold
-autoHopBtn.AutoButtonColor = false
-autoHopBtn.ZIndex = 320
+autoHopBtn.ZIndex = 116
 autoHopBtn.Parent = hopPage
 
 local autoCorner = Instance.new("UICorner")
@@ -1019,26 +986,24 @@ autoCorner.CornerRadius = UDim.new(0, 8)
 autoCorner.Parent = autoHopBtn
 
 local stopAutoBtn = Instance.new("TextButton")
-stopAutoBtn.Size = UDim2.new(1, -20, 0, 35)
-stopAutoBtn.Position = UDim2.fromOffset(10, 310)
-stopAutoBtn.BackgroundColor3 = RED
-stopAutoBtn.BorderSizePixel = 0
-stopAutoBtn.Text = "⏹️ Stop Auto"
-stopAutoBtn.TextColor3 = TEXT
-stopAutoBtn.TextSize = 13
+stopAutoBtn.Size = UDim2.new(1, -6, 0, 30)
+stopAutoBtn.Position = UDim2.fromOffset(0, 172)
+stopAutoBtn.BackgroundColor3 = ACCENT_RED
+stopAutoBtn.Text = "⏹️ Stop Auto Hop"
+stopAutoBtn.TextColor3 = TEXT_MAIN
+stopAutoBtn.TextSize = 10
 stopAutoBtn.Font = Enum.Font.GothamBold
-stopAutoBtn.AutoButtonColor = false
 stopAutoBtn.Visible = false
-stopAutoBtn.ZIndex = 320
+stopAutoBtn.ZIndex = 116
 stopAutoBtn.Parent = hopPage
 
 local stopAutoCorner = Instance.new("UICorner")
 stopAutoCorner.CornerRadius = UDim.new(0, 8)
 stopAutoCorner.Parent = stopAutoBtn
 
-local rejoinBtn = createStandardBtn(hopPage, "🔄 Rejoin Server Saat Ini", 355)
-local rejoinPrevBtn = createStandardBtn(hopPage, "⏮️ Rejoin Server Sebelumnya", 400)
-local copyJobBtn = createStandardBtn(hopPage, "📋 Copy JobID / Join Script", 445)
+local rejoinBtn = createStandardBtn(hopPage, "🔄 Rejoin Server Saat Ini", 208)
+local rejoinPrevBtn = createStandardBtn(hopPage, "⏮️ Rejoin Server Sebelumnya", 246)
+local copyJobBtn = createStandardBtn(hopPage, "📋 Copy JobID / Join Script", 284)
 
 local isAutoHoping = false
 local autoHopRunning = false
@@ -1046,103 +1011,72 @@ local isHopInProcess = false
 
 local function FetchServerList(cursor)
     local url = "https://games.roblox.com/v1/games/" .. tostring(PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
-    if cursor and cursor ~= "" then
-        url = url .. "&cursor=" .. tostring(cursor)
-    end
-    
-    local success, response = pcall(function()
-        return game:HttpGet(url)
-    end)
-    
+    if cursor and cursor ~= "" then url = url .. "&cursor=" .. tostring(cursor) end
+    local success, response = pcall(function() return game:HttpGet(url) end)
     if success and response and response ~= "" then
-        local decodeSuccess, decoded = pcall(function()
-            return HttpService:JSONDecode(response)
-        end)
-        if decodeSuccess and decoded and decoded.data then
-            return decoded.data, decoded.nextPageCursor
-        end
+        local decodeSuccess, decoded = pcall(function() return HttpService:JSONDecode(response) end)
+        if decodeSuccess and decoded and decoded.data then return decoded.data, decoded.nextPageCursor end
     end
     return nil, nil
 end
 
 local function HopServer()
     if isHopInProcess then return end
-    
     local target = tonumber(targetInput.Text)
     if not target then
         statusLabel.Text = "❌ Masukkan angka jumlah player!"
-        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        statusLabel.TextColor3 = ACCENT_RED
+        showToast("Server Hop", "Masukkan angka jumlah player!", ACCENT_RED)
         return
     end
-    
+
     isHopInProcess = true
     target = math.clamp(target, 0, game.Players.MaxPlayers)
-    
+
     statusLabel.Text = "🔍 Memindai server (Deep Scan)..."
     statusLabel.TextColor3 = YELLOW
     hopBtn.Text = "⏳ Mencari..."
-    
+    showToast("Server Hop", "Memindai daftar server...", ACCENT_BLUE)
+
     task.spawn(function()
         local validServers = {}
         local currentCursor = ""
-        local pageLimit = 5
         local pagesFetched = 0
-        
-        while pagesFetched < pageLimit do
+        while pagesFetched < 5 do
             pagesFetched = pagesFetched + 1
             local servers, nextCursor = FetchServerList(currentCursor)
-            
             if servers then
                 for _, server in ipairs(servers) do
                     local serverId = tostring(server.id)
                     local playing = tonumber(server.playing) or 0
                     local maxP = tonumber(server.maxPlayers) or 0
-                    
                     if serverId ~= JobId and not blacklistedServers[serverId] then
-                        local isMatch = false
-                        if exactMatchActive then
-                            isMatch = (playing == target)
-                        else
-                            isMatch = (playing <= target and playing < maxP)
-                        end
-                        
-                        if isMatch then
-                            table.insert(validServers, {id = serverId, playing = playing})
-                        end
+                        local isMatch = exactMatchActive and (playing == target) or (playing <= target and playing < maxP)
+                        if isMatch then table.insert(validServers, {id = serverId, playing = playing}) end
                     end
                 end
-            else
-                break
-            end
-            
-            if #validServers >= 3 or not nextCursor or nextCursor == "" then
-                break
-            end
+            else break end
+            if #validServers >= 3 or not nextCursor or nextCursor == "" then break end
             currentCursor = nextCursor
             task.wait(0.2)
         end
-        
+
         if #validServers > 0 then
             math.randomseed(tick())
             local chosen = validServers[math.random(1, #validServers)]
             blacklistedServers[chosen.id] = true
-            
             statusLabel.Text = "✅ Ditemukan! (" .. chosen.playing .. " player)"
-            statusLabel.TextColor3 = GREEN
+            statusLabel.TextColor3 = ACCENT_GREEN
             hopBtn.Text = "🚀 Hop Sekali"
-            
+            showToast("Server Hop", "Melakukan Teleport...", ACCENT_GREEN)
             saveCurrentServerAsPrevious()
             TeleportService:TeleportToPlaceInstance(PlaceId, chosen.id, Player)
         else
-            if exactMatchActive then
-                statusLabel.Text = "❌ Tidak ada server dengan " .. target .. " player"
-            else
-                statusLabel.Text = "❌ Server tak ditemukan / API limit"
-            end
-            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            statusLabel.Text = exactMatchActive and ("❌ Tidak ada server dengan " .. target .. " player") or "❌ Server tak ditemukan"
+            statusLabel.TextColor3 = ACCENT_RED
             hopBtn.Text = "🚀 Hop Sekali"
+            showToast("Server Hop", "Server tak ditemukan!", ACCENT_RED)
         end
-        
         isHopInProcess = false
     end)
 end
@@ -1151,37 +1085,32 @@ local function startAutoHop()
     local target = tonumber(targetInput.Text)
     if not target then
         statusLabel.Text = "❌ Masukkan angka jumlah player!"
-        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        statusLabel.TextColor3 = ACCENT_RED
+        showToast("Auto Hop", "Masukkan angka jumlah player!", ACCENT_RED)
         return
     end
-
     if isAutoHoping then return end
     isAutoHoping = true
     autoHopRunning = true
     autoHopBtn.Text = "🔁 Auto: ON"
-    autoHopBtn.BackgroundColor3 = ON_COLOR
+    autoHopBtn.BackgroundColor3 = ACCENT_BLUE
     stopAutoBtn.Visible = true
     statusLabel.Text = "🔄 Auto Hop aktif..."
     statusLabel.TextColor3 = YELLOW
+    showToast("Auto Hop", "Fitur Auto Hop Diaktifkan", ACCENT_GREEN)
 
     task.spawn(function()
         while autoHopRunning do
             local currentTarget = tonumber(targetInput.Text) or 5
             currentTarget = math.clamp(currentTarget, 0, game.Players.MaxPlayers)
-            
-            local shouldHop = false
-            if exactMatchActive then
-                shouldHop = (#Players:GetPlayers() ~= currentTarget)
-            else
-                shouldHop = (#Players:GetPlayers() > currentTarget)
-            end
-            
+            local shouldHop = exactMatchActive and (#Players:GetPlayers() ~= currentTarget) or (#Players:GetPlayers() > currentTarget)
+
             if shouldHop then
                 HopServer()
                 task.wait(4)
             else
                 statusLabel.Text = "🔄 Normal (" .. #Players:GetPlayers() .. " player)"
-                statusLabel.TextColor3 = SUBTEXT
+                statusLabel.TextColor3 = TEXT_SUB
             end
             task.wait(3)
         end
@@ -1192,10 +1121,11 @@ local function stopAutoHop()
     autoHopRunning = false
     isAutoHoping = false
     autoHopBtn.Text = "🔁 Auto: OFF"
-    autoHopBtn.BackgroundColor3 = BUTTON
+    autoHopBtn.BackgroundColor3 = BUTTON_BG
     stopAutoBtn.Visible = false
     statusLabel.Text = "Status: ✅ Siap"
-    statusLabel.TextColor3 = SUBTEXT
+    statusLabel.TextColor3 = TEXT_SUB
+    showToast("Auto Hop", "Fitur Auto Hop Dihentikan", ACCENT_BLUE)
 end
 
 hopBtn.MouseButton1Click:Connect(HopServer)
@@ -1205,6 +1135,7 @@ end)
 stopAutoBtn.MouseButton1Click:Connect(stopAutoHop)
 
 rejoinBtn.MouseButton1Click:Connect(function()
+    showToast("Rejoin Server", "Menghubungkan ulang ke server ini...", ACCENT_BLUE)
     saveCurrentServerAsPrevious()
     TeleportService:TeleportToPlaceInstance(PlaceId, JobId, Player)
 end)
@@ -1213,11 +1144,13 @@ rejoinPrevBtn.MouseButton1Click:Connect(function()
     if previousJobId and previousJobId ~= "" then
         statusLabel.Text = "⏳ Teleport ke server sebelumnya..."
         statusLabel.TextColor3 = YELLOW
+        showToast("Rejoin Previous", "Teleport ke server sebelumnya...", ACCENT_BLUE)
         saveCurrentServerAsPrevious()
         TeleportService:TeleportToPlaceInstance(PlaceId, previousJobId, Player)
     else
         statusLabel.Text = "❌ Tidak ada riwayat server sebelumnya!"
-        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        statusLabel.TextColor3 = ACCENT_RED
+        showToast("Rejoin Previous", "Tidak ada riwayat server!", ACCENT_RED)
     end
 end)
 
@@ -1225,16 +1158,19 @@ copyJobBtn.MouseButton1Click:Connect(function()
     if setclipboard then
         setclipboard("TeleportService:TeleportToPlaceInstance(" .. PlaceId .. ", '" .. JobId .. "', LocalPlayer)")
         statusLabel.Text = "✅ Join Script Disalin!"
-        statusLabel.TextColor3 = GREEN
+        statusLabel.TextColor3 = ACCENT_GREEN
+        showToast("Copy JobID", "Script Join berhasil disalin ke clipboard", ACCENT_GREEN)
     end
 end)
 
-hopPage.CanvasSize = UDim2.new(0, 0, 0, 500)
+hopPage.CanvasSize = UDim2.new(0, 0, 0, 325)
 
 -- ============================================================
--- 4. GRAPHICS (GFX) PAGE CONTENT
+-- 4. TAB GFX (OPTIMASI GRAPHICS, HUD DUAL-PILL, POST-EFFECTS)
 -- ============================================================
-createCategoryLabel(graphicsPage, "[ PERFORMANCE & OPTIMIZATION ]", 5)
+local gfxPage = pages.Gfx
+
+createCategoryLabel(gfxPage, "[ PERFORMANCE & OPTIMIZATION ]", 0)
 
 local originalMaterials = {}
 local originalGlobalShadows = Lighting.GlobalShadows
@@ -1242,40 +1178,31 @@ local originalGlobalShadows = Lighting.GlobalShadows
 local function restoreGraphics()
     Lighting.GlobalShadows = originalGlobalShadows
     for part, originalMat in pairs(originalMaterials) do
-        if part and part.Parent then
-            part.Material = originalMat
-        end
+        if part and part.Parent then part.Material = originalMat end
     end
     for _, v in ipairs(workspace:GetDescendants()) do
-        if v:IsA("ParticleEmitter") or v:IsA("Trail") then
-            v.Enabled = true
-        end
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled = true end
     end
     table.clear(originalMaterials)
 end
 
 -- 1. LOW GRAPHICS
-createToggleRow(graphicsPage, "📉 Low Graphics", "Mode Anti-Lag (Material Smooth)", 30, function(isOn)
+addToggleRow(gfxPage, "📉 Low Graphics", "Mode Anti-Lag (Material Smooth)", 24, function(isOn)
     if isOn then
         originalGlobalShadows = Lighting.GlobalShadows
         Lighting.GlobalShadows = false
-        
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("BasePart") then
-                if not originalMaterials[v] then
-                    originalMaterials[v] = v.Material
-                end
+                if not originalMaterials[v] then originalMaterials[v] = v.Material end
                 v.Material = Enum.Material.SmoothPlastic
-            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
-                v.Enabled = false
-            end
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled = false end
         end
     else
         restoreGraphics()
     end
 end)
 
--- 2. HIDE OTHER PLAYERS (AUTO ACCESORY & SLOW LOAD FIXED)
+-- 2. HIDE OTHER PLAYERS
 local hidePlayersActive = false
 local hidePlayersConn = nil
 local playerAddedConns = {}
@@ -1292,24 +1219,18 @@ end
 local function applyHideToCharacter(character, hide)
     if not character then return end
     local transVal = hide and 1 or 0
-    
     for _, part in ipairs(character:GetDescendants()) do
-        if part.Name ~= "HumanoidRootPart" then
-            setPartTransparency(part, transVal)
-        end
+        if part.Name ~= "HumanoidRootPart" then setPartTransparency(part, transVal) end
     end
 end
 
 local function monitorCharacterAccessories(character)
     if not character then return end
-    
     local conn = character.ChildAdded:Connect(function(child)
         if hidePlayersActive then
             task.wait(0.1)
             applyHideToCharacter(child, true)
-            for _, descendant in ipairs(child:GetDescendants()) do
-                setPartTransparency(descendant, 1)
-            end
+            for _, descendant in ipairs(child:GetDescendants()) do setPartTransparency(descendant, 1) end
         end
     end)
     table.insert(childAddedConns, conn)
@@ -1317,7 +1238,6 @@ end
 
 local function toggleHidePlayers(state)
     hidePlayersActive = state
-    
     if hidePlayersConn then hidePlayersConn:Disconnect() hidePlayersConn = nil end
     for _, conn in ipairs(playerAddedConns) do conn:Disconnect() end
     for _, conn in ipairs(childAddedConns) do conn:Disconnect() end
@@ -1327,74 +1247,58 @@ local function toggleHidePlayers(state)
     for _, targetPlayer in ipairs(Players:GetPlayers()) do
         if targetPlayer ~= Player and targetPlayer.Character then
             applyHideToCharacter(targetPlayer.Character, hidePlayersActive)
-            if hidePlayersActive then
-                monitorCharacterAccessories(targetPlayer.Character)
-            end
+            if hidePlayersActive then monitorCharacterAccessories(targetPlayer.Character) end
         end
     end
 
     if hidePlayersActive then
         local function onCharAdded(targetPlayer, char)
             if not hidePlayersActive then return end
-            
             applyHideToCharacter(char, true)
             monitorCharacterAccessories(char)
-            
             task.spawn(function()
                 task.wait(0.5)
-                if hidePlayersActive and char and char.Parent then
-                    applyHideToCharacter(char, true)
-                end
+                if hidePlayersActive and char and char.Parent then applyHideToCharacter(char, true) end
                 task.wait(1.5)
-                if hidePlayersActive and char and char.Parent then
-                    applyHideToCharacter(char, true)
-                end
+                if hidePlayersActive and char and char.Parent then applyHideToCharacter(char, true) end
             end)
         end
 
         for _, targetPlayer in ipairs(Players:GetPlayers()) do
             if targetPlayer ~= Player then
-                local conn = targetPlayer.CharacterAdded:Connect(function(char)
-                    onCharAdded(targetPlayer, char)
-                end)
+                local conn = targetPlayer.CharacterAdded:Connect(function(char) onCharAdded(targetPlayer, char) end)
                 table.insert(playerAddedConns, conn)
             end
         end
 
         hidePlayersConn = Players.PlayerAdded:Connect(function(targetPlayer)
-            local conn = targetPlayer.CharacterAdded:Connect(function(char)
-                onCharAdded(targetPlayer, char)
-            end)
+            local conn = targetPlayer.CharacterAdded:Connect(function(char) onCharAdded(targetPlayer, char) end)
             table.insert(playerAddedConns, conn)
         end)
     end
 end
 
-createToggleRow(graphicsPage, "👤 Hide Other Players", "Sembunyikan model player lain (Boost FPS)", 87, function(isOn)
+addToggleRow(gfxPage, "👤 Hide Other Players", "Sembunyikan player lain (FPS Boost)", 78, function(isOn)
     toggleHidePlayers(isOn)
 end)
 
 -- 3. LIMIT 30 FPS
-createToggleRow(graphicsPage, "🔋 Limit 30 FPS", "Penghemat baterai saat AFK", 144, function(isOn)
-    if isOn then
-        if setfpscap then setfpscap(30) end
-    else
-        if setfpscap then setfpscap(240) end
-    end
+addToggleRow(gfxPage, "🔋 Limit 30 FPS", "Penghemat baterai saat AFK", 132, function(isOn)
+    if setfpscap then setfpscap(isOn and 30 or 240) end
 end)
 
--- 4. FPS & PING DISPLAY HUD (MODERN DUAL-PILL DRAGGABLE EDITION)
+-- 4. FPS & PING DISPLAY HUD MODERN (DRAGGABLE DUAL-PILL)
 local fpsHudFrame = nil
 local fpsHudConn = nil
 
-createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan HUD performa modern di layar", 201, function(isOn)
+addToggleRow(gfxPage, "📊 FPS & Ping Display", "Tampilkan HUD performa di layar", 186, function(isOn)
     if isOn then
         if not fpsHudFrame then
             fpsHudFrame = Instance.new("Frame")
             fpsHudFrame.Name = "STRN_ModernHud"
-            fpsHudFrame.Size = UDim2.fromOffset(210, 36)
-            fpsHudFrame.Position = UDim2.new(1, -220, 0.05, 0)
-            fpsHudFrame.BackgroundColor3 = BG
+            fpsHudFrame.Size = UDim2.fromOffset(200, 34)
+            fpsHudFrame.Position = UDim2.new(1, -210, 0.05, 0)
+            fpsHudFrame.BackgroundColor3 = BG_COLOR
             fpsHudFrame.BackgroundTransparency = 0.2
             fpsHudFrame.BorderSizePixel = 0
             fpsHudFrame.ZIndex = 9999999
@@ -1406,16 +1310,16 @@ createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan HUD performa
             mainCorner.Parent = fpsHudFrame
 
             local mainStroke = Instance.new("UIStroke")
-            mainStroke.Color = Color3.fromRGB(80, 80, 90)
-            mainStroke.Transparency = 0.4
+            mainStroke.Color = Color3.fromRGB(70, 70, 85)
+            mainStroke.Transparency = 0.3
             mainStroke.Thickness = 1.2
             mainStroke.Parent = fpsHudFrame
 
             -- CARD FPS
             local fpsCard = Instance.new("Frame")
             fpsCard.Name = "FPSCard"
-            fpsCard.Size = UDim2.new(0.5, -7, 1, -8)
-            fpsCard.Position = UDim2.fromOffset(5, 4)
+            fpsCard.Size = UDim2.new(0.5, -6, 1, -8)
+            fpsCard.Position = UDim2.fromOffset(4, 4)
             fpsCard.BackgroundColor3 = CARD_BG
             fpsCard.BorderSizePixel = 0
             fpsCard.ZIndex = 9999999
@@ -1428,8 +1332,8 @@ createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan HUD performa
             local fpsDot = Instance.new("Frame")
             fpsDot.Name = "FPSDot"
             fpsDot.Size = UDim2.fromOffset(6, 6)
-            fpsDot.Position = UDim2.new(0, 8, 0.5, -3)
-            fpsDot.BackgroundColor3 = GREEN
+            fpsDot.Position = UDim2.new(0, 6, 0.5, -3)
+            fpsDot.BackgroundColor3 = ACCENT_GREEN
             fpsDot.BorderSizePixel = 0
             fpsDot.ZIndex = 10000000
             fpsDot.Parent = fpsCard
@@ -1440,12 +1344,12 @@ createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan HUD performa
 
             local fpsLabel = Instance.new("TextLabel")
             fpsLabel.Name = "FPSLabel"
-            fpsLabel.Size = UDim2.new(1, -20, 1, 0)
-            fpsLabel.Position = UDim2.fromOffset(18, 0)
+            fpsLabel.Size = UDim2.new(1, -16, 1, 0)
+            fpsLabel.Position = UDim2.fromOffset(16, 0)
             fpsLabel.BackgroundTransparency = 1
             fpsLabel.Text = "-- FPS"
-            fpsLabel.TextColor3 = TEXT
-            fpsLabel.TextSize = 11
+            fpsLabel.TextColor3 = TEXT_MAIN
+            fpsLabel.TextSize = 10
             fpsLabel.Font = Enum.Font.GothamBold
             fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
             fpsLabel.ZIndex = 10000000
@@ -1454,7 +1358,7 @@ createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan HUD performa
             -- CARD PING
             local pingCard = Instance.new("Frame")
             pingCard.Name = "PingCard"
-            pingCard.Size = UDim2.new(0.5, -7, 1, -8)
+            pingCard.Size = UDim2.new(0.5, -6, 1, -8)
             pingCard.Position = UDim2.new(0.5, 2, 0, 4)
             pingCard.BackgroundColor3 = CARD_BG
             pingCard.BorderSizePixel = 0
@@ -1468,8 +1372,8 @@ createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan HUD performa
             local pingDot = Instance.new("Frame")
             pingDot.Name = "PingDot"
             pingDot.Size = UDim2.fromOffset(6, 6)
-            pingDot.Position = UDim2.new(0, 8, 0.5, -3)
-            pingDot.BackgroundColor3 = GREEN
+            pingDot.Position = UDim2.new(0, 6, 0.5, -3)
+            pingDot.BackgroundColor3 = ACCENT_GREEN
             pingDot.BorderSizePixel = 0
             pingDot.ZIndex = 10000000
             pingDot.Parent = pingCard
@@ -1480,46 +1384,18 @@ createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan HUD performa
 
             local pingLabel = Instance.new("TextLabel")
             pingLabel.Name = "PingLabel"
-            pingLabel.Size = UDim2.new(1, -20, 1, 0)
-            pingLabel.Position = UDim2.fromOffset(18, 0)
+            pingLabel.Size = UDim2.new(1, -16, 1, 0)
+            pingLabel.Position = UDim2.fromOffset(16, 0)
             pingLabel.BackgroundTransparency = 1
             pingLabel.Text = "-- ms"
-            pingLabel.TextColor3 = TEXT
-            pingLabel.TextSize = 11
+            pingLabel.TextColor3 = TEXT_MAIN
+            pingLabel.TextSize = 10
             pingLabel.Font = Enum.Font.GothamBold
             pingLabel.TextXAlignment = Enum.TextXAlignment.Left
             pingLabel.ZIndex = 10000000
             pingLabel.Parent = pingCard
 
-            -- DRAGGING LOGIC UNTUK HUD DISPLAY
-            local isDraggingHud = false
-            local dragStartPos, dragStartMouse
-
-            fpsHudFrame.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    isDraggingHud = true
-                    dragStartPos = fpsHudFrame.Position
-                    dragStartMouse = UserInputService:GetMouseLocation()
-                end
-            end)
-
-            UserInputService.InputChanged:Connect(function(input)
-                if isDraggingHud and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                    local delta = UserInputService:GetMouseLocation() - dragStartMouse
-                    fpsHudFrame.Position = UDim2.new(
-                        dragStartPos.X.Scale,
-                        dragStartPos.X.Offset + delta.X,
-                        dragStartPos.Y.Scale,
-                        dragStartPos.Y.Offset + delta.Y
-                    )
-                end
-            end)
-
-            UserInputService.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    isDraggingHud = false
-                end
-            end)
+            enableDrag(fpsHudFrame, fpsHudFrame)
         end
 
         fpsHudFrame.Visible = true
@@ -1530,18 +1406,14 @@ createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan HUD performa
         fpsHudConn = RunService.RenderStepped:Connect(function()
             frameCount = frameCount + 1
             local now = tick()
-
             if now - lastUpdate >= 0.4 then
                 local elapsed = now - lastUpdate
                 local fps = math.floor(frameCount / elapsed)
                 frameCount = 0
                 lastUpdate = now
 
-                local ping
-                local pingSuccess, pingValue = pcall(function()
-                    return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
-                end)
-                if pingSuccess then ping = tonumber(pingValue) end
+                local ping = 0
+                pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
 
                 local fpsCardObj = fpsHudFrame:FindFirstChild("FPSCard")
                 local pingCardObj = fpsHudFrame:FindFirstChild("PingCard")
@@ -1549,55 +1421,31 @@ createToggleRow(graphicsPage, "📊 FPS & Ping Display", "Tampilkan HUD performa
                 if fpsCardObj then
                     local fpsLabel = fpsCardObj:FindFirstChild("FPSLabel")
                     local fpsDot = fpsCardObj:FindFirstChild("FPSDot")
-
                     if fpsLabel then fpsLabel.Text = string.format("%d FPS", fps) end
                     if fpsDot then
-                        if fps < 30 then
-                            fpsDot.BackgroundColor3 = RED
-                        elseif fps < 50 then
-                            fpsDot.BackgroundColor3 = YELLOW
-                        else
-                            fpsDot.BackgroundColor3 = GREEN
-                        end
+                        fpsDot.BackgroundColor3 = (fps < 30 and ACCENT_RED) or (fps < 50 and YELLOW) or ACCENT_GREEN
                     end
                 end
 
                 if pingCardObj then
                     local pingLabel = pingCardObj:FindFirstChild("PingLabel")
                     local pingDot = pingCardObj:FindFirstChild("PingDot")
-
-                    if ping then
-                        if pingLabel then pingLabel.Text = string.format("%d ms", math.floor(ping)) end
-                        if pingDot then
-                            if ping < 80 then
-                                pingDot.BackgroundColor3 = GREEN
-                            elseif ping < 150 then
-                                pingDot.BackgroundColor3 = YELLOW
-                            else
-                                pingDot.BackgroundColor3 = RED
-                            end
-                        end
-                    else
-                        if pingLabel then pingLabel.Text = "-- ms" end
+                    if pingLabel then pingLabel.Text = string.format("%d ms", ping) end
+                    if pingDot then
+                        pingDot.BackgroundColor3 = (ping < 80 and ACCENT_GREEN) or (ping < 150 and YELLOW) or ACCENT_RED
                     end
                 end
             end
         end)
     else
-        if fpsHudConn then
-            fpsHudConn:Disconnect()
-            fpsHudConn = nil
-        end
-        if fpsHudFrame then
-            fpsHudFrame.Visible = false
-        end
+        if fpsHudConn then fpsHudConn:Disconnect() fpsHudConn = nil end
+        if fpsHudFrame then fpsHudFrame.Visible = false end
     end
 end)
 
 -- 5. DISABLE POST-EFFECTS
 local disabledEffectsList = {}
-
-createToggleRow(graphicsPage, "⚡ Disable Post-Effects", "Matikan Blur, Bloom, DOF & SunRays", 258, function(isOn)
+addToggleRow(gfxPage, "⚡ Disable Post-Effects", "Matikan Blur, Bloom, DOF & SunRays", 240, function(isOn)
     if isOn then
         table.clear(disabledEffectsList)
         for _, v in ipairs(Lighting:GetChildren()) do
@@ -1610,15 +1458,13 @@ createToggleRow(graphicsPage, "⚡ Disable Post-Effects", "Matikan Blur, Bloom, 
         end
     else
         for _, v in ipairs(disabledEffectsList) do
-            if v and v.Parent then
-                v.Enabled = true
-            end
+            if v and v.Parent then v.Enabled = true end
         end
         table.clear(disabledEffectsList)
     end
 end)
 
-createCategoryLabel(graphicsPage, "[ VISUAL & LIGHTING ]", 321)
+createCategoryLabel(gfxPage, "[ VISUAL & LIGHTING ]", 294)
 
 local defaultBrightness = Lighting.Brightness
 local defaultClockTime = Lighting.ClockTime
@@ -1628,18 +1474,12 @@ local defaultGlobalShadows = Lighting.GlobalShadows
 
 -- 6. FULLBRIGHT
 local fullbrightConnection = nil
-
-createToggleRow(graphicsPage, "☀️ Fullbright", "Memaksa map menjadi terang benderang", 346, function(isOn)
-    if fullbrightConnection then
-        fullbrightConnection:Disconnect()
-        fullbrightConnection = nil
-    end
-
+addToggleRow(gfxPage, "☀️ Fullbright", "Memaksa map menjadi terang benderang", 318, function(isOn)
+    if fullbrightConnection then fullbrightConnection:Disconnect() fullbrightConnection = nil end
     if isOn then
         defaultBrightness = Lighting.Brightness
         defaultClockTime = Lighting.ClockTime
         defaultGlobalShadows = Lighting.GlobalShadows
-
         fullbrightConnection = RunService.RenderStepped:Connect(function()
             Lighting.Brightness = 2
             Lighting.ClockTime = 14
@@ -1659,22 +1499,15 @@ end)
 -- 7. REMOVE FOG
 local removeFogConnection = nil
 local hiddenAtmospheres = {}
-
-createToggleRow(graphicsPage, "🌤️ Remove Fog", "Menghapus kabut & efek atmosphere", 403, function(isOn)
-    if removeFogConnection then
-        removeFogConnection:Disconnect()
-        removeFogConnection = nil
-    end
-
+addToggleRow(gfxPage, "🌤️ Remove Fog", "Menghapus kabut & suasana", 372, function(isOn)
+    if removeFogConnection then removeFogConnection:Disconnect() removeFogConnection = nil end
     if isOn then
         defaultFogStart = Lighting.FogStart
         defaultFogEnd = Lighting.FogEnd
-
         removeFogConnection = RunService.RenderStepped:Connect(function()
             Lighting.FogStart = 0
             Lighting.FogEnd = 9e9
         end)
-
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("Atmosphere") then
                 table.insert(hiddenAtmospheres, {Inst = v, Density = v.Density})
@@ -1686,51 +1519,14 @@ createToggleRow(graphicsPage, "🌤️ Remove Fog", "Menghapus kabut & efek atmo
             Lighting.FogStart = defaultFogStart
             Lighting.FogEnd = defaultFogEnd
         end)
-
         for _, item in ipairs(hiddenAtmospheres) do
-            if item.Inst and item.Inst.Parent then
-                item.Inst.Density = item.Density or 0.395
-            end
+            if item.Inst and item.Inst.Parent then item.Inst.Density = item.Density or 0.395 end
         end
         table.clear(hiddenAtmospheres)
     end
 end)
 
-graphicsPage.CanvasSize = UDim2.new(0, 0, 0, 470)
+gfxPage.CanvasSize = UDim2.new(0, 0, 0, 430)
 
--- ============================================================
--- DRAGGING LOGIC CONTROL (− BUTTON)
--- ============================================================
-local isDraggingMenu = false
-local dragStartPos = nil
-local dragStartMouse = nil
-
-dragButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        isDraggingMenu = true
-        dragStartPos = frame.Position
-        dragStartMouse = UserInputService:GetMouseLocation()
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if not isDraggingMenu then return end
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        local currentMouse = UserInputService:GetMouseLocation()
-        local delta = currentMouse - dragStartMouse
-        frame.Position = UDim2.new(
-            dragStartPos.X.Scale, 
-            dragStartPos.X.Offset + delta.X, 
-            dragStartPos.Y.Scale, 
-            dragStartPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        isDraggingMenu = false
-    end
-end)
-
+pages.Way.Visible = true
 refreshWaypointList()
