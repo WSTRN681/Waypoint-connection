@@ -1,5 +1,5 @@
 -- ============================================================
--- SCRIPT 2: STRN BP / BYPASS (FULL FEATURES + TOAST NOTIFICATIONS)
+-- SCRIPT: STRN BP / BYPASS (FULL OPTIMIZED V3)
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -34,15 +34,18 @@ local YELLOW = Color3.fromRGB(255, 200, 50)
 getgenv().STRN_ToggleStates = getgenv().STRN_ToggleStates or {}
 local ToggleStates = getgenv().STRN_ToggleStates
 
--- STORAGE FILE WAYPOINT & LAST SERVER (PER-GAME VIA PLACEID)
+-- STORAGE FILE WAYPOINT & SERVER HISTORY (PER-GAME VIA PLACEID)
 local PlaceId = game.PlaceId
 local JobId = game.JobId
 local WAYPOINT_FILE = "STRN_Waypoint_" .. tostring(PlaceId) .. ".json"
-local LAST_SERVER_FILE = "STRN_LastServer_" .. tostring(PlaceId) .. ".json"
-local waypoints = {}
-local previousJobId = nil
-local blacklistedServers = {[JobId] = true}
+local HISTORY_FILE = "STRN_History_" .. tostring(PlaceId) .. ".json"
+local BLACKLIST_FILE = "STRN_Blacklist_" .. tostring(PlaceId) .. ".json"
 
+local waypoints = {}
+local serverHistory = {}
+local blacklistedServers = {[JobId] = os.time()}
+
+-- 1. FUNGSI WAYPOINT ASLI
 local function saveWaypoints()
     local success, json = pcall(function() return HttpService:JSONEncode(waypoints) end)
     if success and json and writefile then
@@ -63,22 +66,56 @@ local function loadWaypoints()
     end
 end
 
-local function saveCurrentServerAsPrevious()
+-- 2. FUNGSI RIWAYAT SERVER (HISTORY 5 SERVER)
+local function saveServerHistory()
     if writefile and JobId and JobId ~= "" then
         pcall(function()
-            writefile(LAST_SERVER_FILE, HttpService:JSONEncode({jobId = JobId}))
+            table.insert(serverHistory, 1, JobId)
+            local cleanHistory = {}
+            local seen = {}
+            for _, id in ipairs(serverHistory) do
+                if not seen[id] then
+                    seen[id] = true
+                    table.insert(cleanHistory, id)
+                end
+            end
+            while #cleanHistory > 5 do table.remove(cleanHistory) end
+            serverHistory = cleanHistory
+            writefile(HISTORY_FILE, HttpService:JSONEncode(serverHistory))
         end)
     end
 end
 
-local function loadPreviousServer()
-    if isfile and isfile(LAST_SERVER_FILE) and readfile then
-        local success, fileData = pcall(function() return readfile(LAST_SERVER_FILE) end)
+local function loadServerHistory()
+    if isfile and isfile(HISTORY_FILE) and readfile then
+        local success, fileData = pcall(function() return readfile(HISTORY_FILE) end)
         if success and fileData and fileData ~= "" then
             local decodeSuccess, decoded = pcall(function() return HttpService:JSONDecode(fileData) end)
-            if decodeSuccess and type(decoded) == "table" and decoded.jobId then
-                if decoded.jobId ~= JobId then
-                    previousJobId = decoded.jobId
+            if decodeSuccess and type(decoded) == "table" then
+                serverHistory = decoded
+            end
+        end
+    end
+end
+
+-- 3. FUNGSI BLACKLIST DENGAN TTL 15 MENIT (900 DETIK)
+local function saveBlacklist()
+    if writefile then
+        pcall(function() writefile(BLACKLIST_FILE, HttpService:JSONEncode(blacklistedServers)) end)
+    end
+end
+
+local function loadBlacklist()
+    if isfile and isfile(BLACKLIST_FILE) and readfile then
+        local success, fileData = pcall(function() return readfile(BLACKLIST_FILE) end)
+        if success and fileData and fileData ~= "" then
+            local decodeSuccess, decoded = pcall(function() return HttpService:JSONDecode(fileData) end)
+            if decodeSuccess and type(decoded) == "table" then
+                local now = os.time()
+                for id, ts in pairs(decoded) do
+                    if type(ts) == "number" and (now - ts) < 900 then
+                        blacklistedServers[id] = ts
+                    end
                 end
             end
         end
@@ -86,7 +123,9 @@ local function loadPreviousServer()
 end
 
 loadWaypoints()
-loadPreviousServer()
+loadServerHistory()
+loadBlacklist()
+saveServerHistory()
 
 -- CLEANUP OLD GUI
 local oldGui = PlayerGui:FindFirstChild("STRN_BP_V2")
@@ -100,23 +139,20 @@ gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.DisplayOrder = 1000001
 gui.Parent = PlayerGui
 
--- TOAST NOTIFICATIONS (POJOK KANAN BAWAH)
-local toastContainer = PlayerGui:FindFirstChild("STRN_ToastContainer")
-if not toastContainer then
-    toastContainer = Instance.new("Frame")
-    toastContainer.Name = "STRN_ToastContainer"
-    toastContainer.Size = UDim2.new(0, 220, 1, 0)
-    toastContainer.Position = UDim2.new(1, -230, 0, -10)
-    toastContainer.BackgroundTransparency = 1
-    toastContainer.ZIndex = 9999999
-    toastContainer.Parent = gui
+-- TOAST NOTIFICATIONS
+local toastContainer = Instance.new("Frame")
+toastContainer.Name = "STRN_ToastContainer"
+toastContainer.Size = UDim2.new(0, 220, 1, 0)
+toastContainer.Position = UDim2.new(1, -230, 0, -10)
+toastContainer.BackgroundTransparency = 1
+toastContainer.ZIndex = 9999999
+toastContainer.Parent = gui
 
-    local toastLayout = Instance.new("UIListLayout")
-    toastLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-    toastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-    toastLayout.Padding = UDim.new(0, 8)
-    toastLayout.Parent = toastContainer
-end
+local toastLayout = Instance.new("UIListLayout")
+toastLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+toastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+toastLayout.Padding = UDim.new(0, 8)
+toastLayout.Parent = toastContainer
 
 local function showToast(titleText, descText, accentColor)
     accentColor = accentColor or ACCENT_BLUE
@@ -218,7 +254,6 @@ titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.ZIndex = 110
 titleLabel.Parent = frame
 
--- TOMBOL DRAG MINUS (−)
 local dragButton = Instance.new("TextButton")
 dragButton.Size = UDim2.fromOffset(28, 28)
 dragButton.Position = UDim2.new(1, -104, 0, 6)
@@ -270,7 +305,6 @@ local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 7)
 closeCorner.Parent = closeButton
 
--- AUTO-REOPEN STRN HUB WHEN BP CLOSED
 closeButton.MouseButton1Click:Connect(function()
     frame.Visible = false
     local mainHub = PlayerGui:FindFirstChild("STRN HUB v2")
@@ -285,7 +319,6 @@ getgenv().ToggleSTRNBypass = function()
     frame.Visible = not frame.Visible
 end
 
--- LOGIKA DRAGGING
 local function enableDrag(dragObj, targetObj)
     local dragging, dragStart, startPos = false, nil, nil
     dragObj.InputBegan:Connect(function(input)
@@ -309,7 +342,6 @@ end
 enableDrag(titleLabel, frame)
 enableDrag(dragButton, frame)
 
--- SIDEBAR & CONTENT AREA
 local sidebar = Instance.new("Frame")
 sidebar.Name = "Sidebar"
 sidebar.Size = UDim2.new(0, 115, 1, -45)
@@ -365,6 +397,7 @@ compactButton.MouseButton1Click:Connect(function()
     tweenFrame.Completed:Connect(function() isAnimating = false end)
 end)
 
+-- PEMBUATAN PAGE (SCROLLING AMAN DI HP)
 local function createPage()
     local page = Instance.new("ScrollingFrame")
     page.Size = UDim2.new(1, 0, 1, 0)
@@ -373,6 +406,10 @@ local function createPage()
     page.ScrollBarThickness = 3
     page.ScrollBarImageColor3 = Color3.fromRGB(90, 90, 105)
     page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    page.ScrollingDirection = Enum.ScrollingDirection.Y
+    page.Active = true
+    page.Selectable = true
     page.Visible = false
     page.ZIndex = 115
     page.Parent = contentArea
@@ -413,7 +450,7 @@ for i, cat in ipairs(categoryData) do
     end)
 end
 
--- HELPER UI BUILDERS WITH PERSISTENT GLOBAL TOGGLE STATE + TOAST
+-- HELPER UI BUILDERS
 local function createCategoryLabel(parent, text, yPosition)
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(1, -6, 0, 22)
@@ -483,9 +520,7 @@ local function addToggleRow(parent, titleText, descText, yPos, callback)
     swCorner.Parent = sw
 
     local stateKey = "Toggle_" .. titleText
-    if ToggleStates[stateKey] == nil then
-        ToggleStates[stateKey] = false
-    end
+    if ToggleStates[stateKey] == nil then ToggleStates[stateKey] = false end
     local state = ToggleStates[stateKey]
 
     local function refreshVisual(st)
@@ -496,9 +531,7 @@ local function addToggleRow(parent, titleText, descText, yPos, callback)
 
     refreshVisual(state)
 
-    if state and callback then
-        task.spawn(function() callback(true) end)
-    end
+    if state and callback then task.spawn(function() callback(true) end) end
 
     sw.MouseButton1Click:Connect(function()
         state = not state
@@ -525,12 +558,11 @@ local function createStandardBtn(parent, text, yPos)
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = btn
-
     return btn
 end
 
 -- ============================================================
--- 1. TAB WAY (WAYPOINT FILE STORAGE & RENAME)
+-- 1. TAB WAY (PENYIMPANAN WAYPOINT PER-GAME)
 -- ============================================================
 local wayPage = pages.Way
 
@@ -700,7 +732,7 @@ local function refreshWaypointList()
     task.wait()
     local contentHeight = math.max(wayLayout.AbsoluteContentSize.Y, 40)
     wayList.Size = UDim2.new(1, -6, 0, contentHeight)
-    wayPage.CanvasSize = UDim2.new(0, 0, 0, 90 + contentHeight)
+    wayPage.CanvasSize = UDim2.new(0, 0, 0, 95 + contentHeight)
 end
 
 saveBtn.MouseButton1Click:Connect(function()
@@ -720,7 +752,7 @@ saveBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================================
--- 2. TAB ACT (INSTANT PROMPT & GROUPED ESP LOGIC)
+-- 2. TAB ACT
 -- ============================================================
 local actPage = pages.Act
 
@@ -742,7 +774,6 @@ end)
 
 createCategoryLabel(actPage, "[ PLAYER ESP & GLOW ]", 78)
 
--- 1. NAME ESP
 local nameEspConn = nil
 local nameBillboards = {}
 local function removeNameESP(target)
@@ -791,10 +822,8 @@ addToggleRow(actPage, "👁️ Name ESP", "Menampilkan nama player lain", 102, f
     end
 end)
 
--- 2. BOX & TRACER ESP
 local tracerConn = nil
 local activeTracers = {}
-
 local function removeTracer(target)
     if activeTracers[target] then
         pcall(function()
@@ -853,10 +882,8 @@ addToggleRow(actPage, "📦 Box & Tracer ESP", "Kotak & Garis ke player lain", 1
     end)
 end)
 
--- 3. RED CHARACTER GLOW
 local redGlowConn = nil
 local charHighlights = {}
-
 local function removeRedGlow(target)
     if charHighlights[target] then pcall(function() charHighlights[target]:Destroy() end) charHighlights[target] = nil end
 end
@@ -895,35 +922,39 @@ Players.PlayerRemoving:Connect(function(p)
     removeRedGlow(p)
 end)
 
-actPage.CanvasSize = UDim2.new(0, 0, 0, 268)
+actPage.CanvasSize = UDim2.new(0, 0, 0, 270)
 
 -- ============================================================
--- 3. TAB HOP (DEEP SCAN, EXACT MATCH, AUTO HOP, REJOIN PREV)
+-- 3. TAB HOP (DENGAN SMART HTTPS LINK & FILTER OPTIMIZED)
 -- ============================================================
 local hopPage = pages.Hop
 
-local maxPlayerLabel = Instance.new("TextLabel")
-maxPlayerLabel.Size = UDim2.new(1, -6, 0, 18)
-maxPlayerLabel.Position = UDim2.fromOffset(0, 0)
-maxPlayerLabel.BackgroundTransparency = 1
-maxPlayerLabel.Text = "Max Players: " .. game.Players.MaxPlayers .. " • Current: " .. #Players:GetPlayers()
-maxPlayerLabel.TextColor3 = TEXT_SUB
-maxPlayerLabel.TextSize = 10
-maxPlayerLabel.Font = Enum.Font.GothamMedium
-maxPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
-maxPlayerLabel.ZIndex = 116
-maxPlayerLabel.Parent = hopPage
+createCategoryLabel(hopPage, "[ 📊 SERVER INFO ]", 0)
 
-Players.PlayerAdded:Connect(function()
-    maxPlayerLabel.Text = "Max Players: " .. game.Players.MaxPlayers .. " • Current: " .. #Players:GetPlayers()
-end)
-Players.PlayerRemoving:Connect(function()
-    maxPlayerLabel.Text = "Max Players: " .. game.Players.MaxPlayers .. " • Current: " .. #Players:GetPlayers()
-end)
+local serverInfoLbl = Instance.new("TextLabel")
+serverInfoLbl.Size = UDim2.new(1, -6, 0, 18)
+serverInfoLbl.Position = UDim2.fromOffset(0, 22)
+serverInfoLbl.BackgroundTransparency = 1
+serverInfoLbl.Text = "Max: " .. game.Players.MaxPlayers .. " • Current: " .. #Players:GetPlayers() .. " • Ping: -- ms"
+serverInfoLbl.TextColor3 = TEXT_SUB
+serverInfoLbl.TextSize = 10
+serverInfoLbl.Font = Enum.Font.GothamMedium
+serverInfoLbl.TextXAlignment = Enum.TextXAlignment.Left
+serverInfoLbl.ZIndex = 116
+serverInfoLbl.Parent = hopPage
+
+local function updateServerInfo()
+    local ping = 0
+    pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
+    serverInfoLbl.Text = "Max: " .. game.Players.MaxPlayers .. " • Current: " .. #Players:GetPlayers() .. " • Ping: " .. ping .. " ms"
+end
+RunService.RenderStepped:Connect(updateServerInfo)
+
+createCategoryLabel(hopPage, "[ 🎯 TARGET & FILTER ]", 46)
 
 local targetInput = Instance.new("TextBox")
-targetInput.Size = UDim2.new(1, -6, 0, 34)
-targetInput.Position = UDim2.fromOffset(0, 22)
+targetInput.Size = UDim2.new(1, -6, 0, 32)
+targetInput.Position = UDim2.fromOffset(0, 68)
 targetInput.BackgroundColor3 = CARD_BG
 targetInput.Text = ""
 targetInput.PlaceholderText = "Target Player (Contoh: 5)"
@@ -939,15 +970,22 @@ tCorner.CornerRadius = UDim.new(0, 8)
 tCorner.Parent = targetInput
 
 local exactMatchActive = false
-addToggleRow(hopPage, "🎯 Exact Match", "Server dengan player PERSIS target", 60, function(state)
+addToggleRow(hopPage, "🎯 Exact Match", "Server dengan player PERSIS target", 106, function(state)
     exactMatchActive = state
 end)
 
+local filterPingActive = false
+addToggleRow(hopPage, "🌐 Filter Ping Asia (<100ms)", "Hanya pilih server ping rendah", 160, function(state)
+    filterPingActive = state
+end)
+
+createCategoryLabel(hopPage, "[ 🚀 HOP ACTIONS ]", 214)
+
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, -6, 0, 18)
-statusLabel.Position = UDim2.fromOffset(0, 114)
+statusLabel.Position = UDim2.fromOffset(0, 236)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Status: ✅ Siap"
+statusLabel.Text = "Status: ✅ Siap (Deep scan aktif)"
 statusLabel.TextColor3 = TEXT_SUB
 statusLabel.TextSize = 9
 statusLabel.Font = Enum.Font.Gotham
@@ -957,7 +995,7 @@ statusLabel.Parent = hopPage
 
 local hopBtn = Instance.new("TextButton")
 hopBtn.Size = UDim2.new(0.48, -3, 0, 34)
-hopBtn.Position = UDim2.fromOffset(0, 134)
+hopBtn.Position = UDim2.fromOffset(0, 256)
 hopBtn.BackgroundColor3 = ACCENT_BLUE
 hopBtn.Text = "🚀 Hop Sekali"
 hopBtn.TextColor3 = TEXT_MAIN
@@ -972,7 +1010,7 @@ hCorner.Parent = hopBtn
 
 local autoHopBtn = Instance.new("TextButton")
 autoHopBtn.Size = UDim2.new(0.48, -3, 0, 34)
-autoHopBtn.Position = UDim2.new(0.52, 0, 0, 134)
+autoHopBtn.Position = UDim2.new(0.52, 0, 0, 256)
 autoHopBtn.BackgroundColor3 = BUTTON_BG
 autoHopBtn.Text = "🔁 Auto: OFF"
 autoHopBtn.TextColor3 = TEXT_MAIN
@@ -987,7 +1025,7 @@ autoCorner.Parent = autoHopBtn
 
 local stopAutoBtn = Instance.new("TextButton")
 stopAutoBtn.Size = UDim2.new(1, -6, 0, 30)
-stopAutoBtn.Position = UDim2.fromOffset(0, 172)
+stopAutoBtn.Position = UDim2.fromOffset(0, 294)
 stopAutoBtn.BackgroundColor3 = ACCENT_RED
 stopAutoBtn.Text = "⏹️ Stop Auto Hop"
 stopAutoBtn.TextColor3 = TEXT_MAIN
@@ -1001,13 +1039,65 @@ local stopAutoCorner = Instance.new("UICorner")
 stopAutoCorner.CornerRadius = UDim.new(0, 8)
 stopAutoCorner.Parent = stopAutoBtn
 
-local rejoinBtn = createStandardBtn(hopPage, "🔄 Rejoin Server Saat Ini", 208)
-local rejoinPrevBtn = createStandardBtn(hopPage, "⏮️ Rejoin Server Sebelumnya", 246)
-local copyJobBtn = createStandardBtn(hopPage, "📋 Copy JobID / Join Script", 284)
+createCategoryLabel(hopPage, "[ 🔗 CUSTOM JOIN & SHARE ]", 330)
 
+local customJobInput = Instance.new("TextBox")
+customJobInput.Size = UDim2.new(1, -6, 0, 32)
+customJobInput.Position = UDim2.fromOffset(0, 352)
+customJobInput.BackgroundColor3 = CARD_BG
+customJobInput.Text = ""
+customJobInput.PlaceholderText = "Paste Custom JobID Server di sini..."
+customJobInput.PlaceholderColor3 = TEXT_SUB
+customJobInput.TextColor3 = TEXT_MAIN
+customJobInput.TextSize = 10
+customJobInput.Font = Enum.Font.GothamMedium
+customJobInput.ZIndex = 116
+customJobInput.Parent = hopPage
+
+local cjCorner = Instance.new("UICorner")
+cjCorner.CornerRadius = UDim.new(0, 8)
+cjCorner.Parent = customJobInput
+
+local joinJobBtn = Instance.new("TextButton")
+joinJobBtn.Size = UDim2.new(0.48, -3, 0, 32)
+joinJobBtn.Position = UDim2.fromOffset(0, 390)
+joinJobBtn.BackgroundColor3 = ACCENT_BLUE
+joinJobBtn.Text = "⚡ Join Custom JobID"
+joinJobBtn.TextColor3 = TEXT_MAIN
+joinJobBtn.TextSize = 10
+joinJobBtn.Font = Enum.Font.GothamBold
+joinJobBtn.ZIndex = 116
+joinJobBtn.Parent = hopPage
+
+local jjCorner = Instance.new("UICorner")
+jjCorner.CornerRadius = UDim.new(0, 8)
+jjCorner.Parent = joinJobBtn
+
+local copyDeeplinkBtn = Instance.new("TextButton")
+copyDeeplinkBtn.Size = UDim2.new(0.48, -3, 0, 32)
+copyDeeplinkBtn.Position = UDim2.new(0.52, 0, 0, 390)
+copyDeeplinkBtn.BackgroundColor3 = BUTTON_BG
+copyDeeplinkBtn.Text = "📋 Copy Link Server"
+copyDeeplinkBtn.TextColor3 = TEXT_MAIN
+copyDeeplinkBtn.TextSize = 10
+copyDeeplinkBtn.Font = Enum.Font.GothamBold
+copyDeeplinkBtn.ZIndex = 116
+copyDeeplinkBtn.Parent = hopPage
+
+local cdCorner = Instance.new("UICorner")
+cdCorner.CornerRadius = UDim.new(0, 8)
+cdCorner.Parent = copyDeeplinkBtn
+
+createCategoryLabel(hopPage, "[ 🔄 HISTORY & BLACKLIST ]", 428)
+
+local rejoinBtn = createStandardBtn(hopPage, "🔄 Rejoin Server Saat Ini", 450)
+local rejoinPrevBtn = createStandardBtn(hopPage, "⏮️ Rejoin Server Sebelumnya (History)", 488)
+local resetBlacklistBtn = createStandardBtn(hopPage, "🧹 Reset Blacklist Manual (TTL: 15 Mnt)", 526)
+
+-- LOGIKA HOP DENGAN FILTER PING & SORTING
+local isHopInProcess = false
 local isAutoHoping = false
 local autoHopRunning = false
-local isHopInProcess = false
 
 local function FetchServerList(cursor)
     local url = "https://games.roblox.com/v1/games/" .. tostring(PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -1039,9 +1129,10 @@ local function HopServer()
     showToast("Server Hop", "Memindai daftar server...", ACCENT_BLUE)
 
     task.spawn(function()
-        local validServers = {}
+        local candidateServers = {}
         local currentCursor = ""
         local pagesFetched = 0
+
         while pagesFetched < 5 do
             pagesFetched = pagesFetched + 1
             local servers, nextCursor = FetchServerList(currentCursor)
@@ -1050,29 +1141,48 @@ local function HopServer()
                     local serverId = tostring(server.id)
                     local playing = tonumber(server.playing) or 0
                     local maxP = tonumber(server.maxPlayers) or 0
+                    local pingVal = tonumber(server.ping) or 999
+
                     if serverId ~= JobId and not blacklistedServers[serverId] then
-                        local isMatch = exactMatchActive and (playing == target) or (playing <= target and playing < maxP)
-                        if isMatch then table.insert(validServers, {id = serverId, playing = playing}) end
+                        local passesPing = (not filterPingActive) or (pingVal <= 100)
+                        if passesPing then
+                            if exactMatchActive then
+                                if playing == target then 
+                                    table.insert(candidateServers, {id = serverId, playing = playing}) 
+                                end
+                            else
+                                if playing <= target and playing < maxP then 
+                                    table.insert(candidateServers, {id = serverId, playing = playing}) 
+                                end
+                            end
+                        end
                     end
                 end
             else break end
-            if #validServers >= 3 or not nextCursor or nextCursor == "" then break end
+
+            if not nextCursor or nextCursor == "" then break end
             currentCursor = nextCursor
-            task.wait(0.2)
+            task.wait(0.15)
         end
 
-        if #validServers > 0 then
+        if #candidateServers > 0 then
+            table.sort(candidateServers, function(a, b) return a.playing > b.playing end)
+            local topMatchCount = math.min(#candidateServers, 3)
             math.randomseed(tick())
-            local chosen = validServers[math.random(1, #validServers)]
-            blacklistedServers[chosen.id] = true
+            local chosen = candidateServers[math.random(1, topMatchCount)]
+
+            blacklistedServers[chosen.id] = os.time()
+            saveBlacklist()
+            saveServerHistory()
+
             statusLabel.Text = "✅ Ditemukan! (" .. chosen.playing .. " player)"
             statusLabel.TextColor3 = ACCENT_GREEN
             hopBtn.Text = "🚀 Hop Sekali"
-            showToast("Server Hop", "Melakukan Teleport...", ACCENT_GREEN)
-            saveCurrentServerAsPrevious()
+            showToast("Server Hop", "Teleportasi ke server...", ACCENT_GREEN)
+
             TeleportService:TeleportToPlaceInstance(PlaceId, chosen.id, Player)
         else
-            statusLabel.Text = exactMatchActive and ("❌ Tidak ada server dengan " .. target .. " player") or "❌ Server tak ditemukan"
+            statusLabel.Text = exactMatchActive and ("❌ Tidak ada server (" .. target .. " player)") or "❌ Server tak ditemukan"
             statusLabel.TextColor3 = ACCENT_RED
             hopBtn.Text = "🚀 Hop Sekali"
             showToast("Server Hop", "Server tak ditemukan!", ACCENT_RED)
@@ -1084,9 +1194,9 @@ end
 local function startAutoHop()
     local target = tonumber(targetInput.Text)
     if not target then
-        statusLabel.Text = "❌ Masukkan angka jumlah player!"
+        statusLabel.Text = "❌ Masukkan angka target player!"
         statusLabel.TextColor3 = ACCENT_RED
-        showToast("Auto Hop", "Masukkan angka jumlah player!", ACCENT_RED)
+        showToast("Auto Hop", "Masukkan angka target player!", ACCENT_RED)
         return
     end
     if isAutoHoping then return end
@@ -1097,19 +1207,20 @@ local function startAutoHop()
     stopAutoBtn.Visible = true
     statusLabel.Text = "🔄 Auto Hop aktif..."
     statusLabel.TextColor3 = YELLOW
-    showToast("Auto Hop", "Fitur Auto Hop Diaktifkan", ACCENT_GREEN)
+    showToast("Auto Hop", "Auto Hop Diaktifkan", ACCENT_GREEN)
 
     task.spawn(function()
         while autoHopRunning do
             local currentTarget = tonumber(targetInput.Text) or 5
             currentTarget = math.clamp(currentTarget, 0, game.Players.MaxPlayers)
-            local shouldHop = exactMatchActive and (#Players:GetPlayers() ~= currentTarget) or (#Players:GetPlayers() > currentTarget)
+            local currentPlayers = #Players:GetPlayers()
+            local shouldHop = exactMatchActive and (currentPlayers ~= currentTarget) or (currentPlayers > currentTarget)
 
-            if shouldHop then
+            if shouldHop and not isHopInProcess then
                 HopServer()
-                task.wait(4)
+                task.wait(6)
             else
-                statusLabel.Text = "🔄 Normal (" .. #Players:GetPlayers() .. " player)"
+                statusLabel.Text = "🔄 Normal (" .. currentPlayers .. " player)"
                 statusLabel.TextColor3 = TEXT_SUB
             end
             task.wait(3)
@@ -1125,7 +1236,7 @@ local function stopAutoHop()
     stopAutoBtn.Visible = false
     statusLabel.Text = "Status: ✅ Siap"
     statusLabel.TextColor3 = TEXT_SUB
-    showToast("Auto Hop", "Fitur Auto Hop Dihentikan", ACCENT_BLUE)
+    showToast("Auto Hop", "Auto Hop Dihentikan", ACCENT_BLUE)
 end
 
 hopBtn.MouseButton1Click:Connect(HopServer)
@@ -1134,39 +1245,73 @@ autoHopBtn.MouseButton1Click:Connect(function()
 end)
 stopAutoBtn.MouseButton1Click:Connect(stopAutoHop)
 
+joinJobBtn.MouseButton1Click:Connect(function()
+    local job = customJobInput.Text:gsub("%s+", "")
+    if job ~= "" then
+        showToast("Custom Join", "Teleportasi ke JobID...", ACCENT_BLUE)
+        blacklistedServers[job] = os.time()
+        saveBlacklist()
+        saveServerHistory()
+        TeleportService:TeleportToPlaceInstance(PlaceId, job, Player)
+    else
+        showToast("Custom Join", "Masukkan JobID valid!", ACCENT_RED)
+    end
+end)
+
+-- SMART HTTPS LINK (OTOMATIS BIRU DI WHATSAPP)
+copyDeeplinkBtn.MouseButton1Click:Connect(function()
+    local generatedLink = ""
+    
+    if game.PrivateServerId ~= "" and game.PrivateServerOwnerId ~= 0 then
+        generatedLink = "https://www.roblox.com/games/" .. tostring(PlaceId) .. "?privateServerLinkCode=" .. tostring(game.PrivateServerId)
+    else
+        generatedLink = "https://www.roblox.com/games/start?placeId=" .. tostring(PlaceId) .. "&gameInstanceId=" .. tostring(JobId)
+    end
+
+    if setclipboard then
+        pcall(function() setclipboard(generatedLink) end)
+        showToast("Copy Link", "Link server berhasil disalin!", ACCENT_GREEN)
+    else
+        showToast("Copy Link", "Executor tak mendukung clipboard!", ACCENT_RED)
+    end
+end)
+
 rejoinBtn.MouseButton1Click:Connect(function()
-    showToast("Rejoin Server", "Menghubungkan ulang ke server ini...", ACCENT_BLUE)
-    saveCurrentServerAsPrevious()
+    showToast("Rejoin Server", "Menghubungkan ulang...", ACCENT_BLUE)
+    saveServerHistory()
     TeleportService:TeleportToPlaceInstance(PlaceId, JobId, Player)
 end)
 
 rejoinPrevBtn.MouseButton1Click:Connect(function()
-    if previousJobId and previousJobId ~= "" then
-        statusLabel.Text = "⏳ Teleport ke server sebelumnya..."
-        statusLabel.TextColor3 = YELLOW
-        showToast("Rejoin Previous", "Teleport ke server sebelumnya...", ACCENT_BLUE)
-        saveCurrentServerAsPrevious()
-        TeleportService:TeleportToPlaceInstance(PlaceId, previousJobId, Player)
+    if #serverHistory >= 2 then
+        local prevJob = serverHistory[2]
+        showToast("Rejoin History", "Teleport ke server sebelumnya...", ACCENT_BLUE)
+        saveServerHistory()
+        TeleportService:TeleportToPlaceInstance(PlaceId, prevJob, Player)
     else
-        statusLabel.Text = "❌ Tidak ada riwayat server sebelumnya!"
-        statusLabel.TextColor3 = ACCENT_RED
-        showToast("Rejoin Previous", "Tidak ada riwayat server!", ACCENT_RED)
+        showToast("Rejoin History", "Belum ada riwayat server!", ACCENT_RED)
     end
 end)
 
-copyJobBtn.MouseButton1Click:Connect(function()
-    if setclipboard then
-        setclipboard("TeleportService:TeleportToPlaceInstance(" .. PlaceId .. ", '" .. JobId .. "', LocalPlayer)")
-        statusLabel.Text = "✅ Join Script Disalin!"
-        statusLabel.TextColor3 = ACCENT_GREEN
-        showToast("Copy JobID", "Script Join berhasil disalin ke clipboard", ACCENT_GREEN)
-    end
+resetBlacklistBtn.MouseButton1Click:Connect(function()
+    table.clear(blacklistedServers)
+    blacklistedServers[JobId] = os.time()
+    saveBlacklist()
+    showToast("Reset Blacklist", "Daftar blacklist telah dikosongkan", ACCENT_GREEN)
 end)
 
-hopPage.CanvasSize = UDim2.new(0, 0, 0, 325)
+TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
+    statusLabel.Text = "❌ Teleport Gagal! Mencoba lagi..."
+    statusLabel.TextColor3 = ACCENT_RED
+    showToast("Teleport Error", errorMessage or "Teleportasi gagal!", ACCENT_RED)
+    isHopInProcess = false
+    if autoHopRunning then task.wait(2) HopServer() end
+end)
+
+hopPage.CanvasSize = UDim2.new(0, 0, 0, 570)
 
 -- ============================================================
--- 4. TAB GFX (OPTIMASI GRAPHICS, HUD DUAL-PILL, POST-EFFECTS)
+-- 4. TAB GFX
 -- ============================================================
 local gfxPage = pages.Gfx
 
@@ -1186,7 +1331,6 @@ local function restoreGraphics()
     table.clear(originalMaterials)
 end
 
--- 1. LOW GRAPHICS
 addToggleRow(gfxPage, "📉 Low Graphics", "Mode Anti-Lag (Material Smooth)", 24, function(isOn)
     if isOn then
         originalGlobalShadows = Lighting.GlobalShadows
@@ -1197,12 +1341,9 @@ addToggleRow(gfxPage, "📉 Low Graphics", "Mode Anti-Lag (Material Smooth)", 24
                 v.Material = Enum.Material.SmoothPlastic
             elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled = false end
         end
-    else
-        restoreGraphics()
-    end
+    else restoreGraphics() end
 end)
 
--- 2. HIDE OTHER PLAYERS
 local hidePlayersActive = false
 local hidePlayersConn = nil
 local playerAddedConns = {}
@@ -1259,8 +1400,6 @@ local function toggleHidePlayers(state)
             task.spawn(function()
                 task.wait(0.5)
                 if hidePlayersActive and char and char.Parent then applyHideToCharacter(char, true) end
-                task.wait(1.5)
-                if hidePlayersActive and char and char.Parent then applyHideToCharacter(char, true) end
             end)
         end
 
@@ -1282,12 +1421,10 @@ addToggleRow(gfxPage, "👤 Hide Other Players", "Sembunyikan player lain (FPS B
     toggleHidePlayers(isOn)
 end)
 
--- 3. LIMIT 30 FPS
 addToggleRow(gfxPage, "🔋 Limit 30 FPS", "Penghemat baterai saat AFK", 132, function(isOn)
     if setfpscap then setfpscap(isOn and 30 or 240) end
 end)
 
--- 4. FPS & PING DISPLAY HUD MODERN (DRAGGABLE DUAL-PILL)
 local fpsHudFrame = nil
 local fpsHudConn = nil
 
@@ -1315,7 +1452,6 @@ addToggleRow(gfxPage, "📊 FPS & Ping Display", "Tampilkan HUD performa di laya
             mainStroke.Thickness = 1.2
             mainStroke.Parent = fpsHudFrame
 
-            -- CARD FPS
             local fpsCard = Instance.new("Frame")
             fpsCard.Name = "FPSCard"
             fpsCard.Size = UDim2.new(0.5, -6, 1, -8)
@@ -1355,7 +1491,6 @@ addToggleRow(gfxPage, "📊 FPS & Ping Display", "Tampilkan HUD performa di laya
             fpsLabel.ZIndex = 10000000
             fpsLabel.Parent = fpsCard
 
-            -- CARD PING
             local pingCard = Instance.new("Frame")
             pingCard.Name = "PingCard"
             pingCard.Size = UDim2.new(0.5, -6, 1, -8)
@@ -1443,7 +1578,6 @@ addToggleRow(gfxPage, "📊 FPS & Ping Display", "Tampilkan HUD performa di laya
     end
 end)
 
--- 5. DISABLE POST-EFFECTS
 local disabledEffectsList = {}
 addToggleRow(gfxPage, "⚡ Disable Post-Effects", "Matikan Blur, Bloom, DOF & SunRays", 240, function(isOn)
     if isOn then
@@ -1472,7 +1606,6 @@ local defaultFogEnd = Lighting.FogEnd
 local defaultFogStart = Lighting.FogStart
 local defaultGlobalShadows = Lighting.GlobalShadows
 
--- 6. FULLBRIGHT
 local fullbrightConnection = nil
 addToggleRow(gfxPage, "☀️ Fullbright", "Memaksa map menjadi terang benderang", 318, function(isOn)
     if fullbrightConnection then fullbrightConnection:Disconnect() fullbrightConnection = nil end
@@ -1496,7 +1629,6 @@ addToggleRow(gfxPage, "☀️ Fullbright", "Memaksa map menjadi terang benderang
     end
 end)
 
--- 7. REMOVE FOG
 local removeFogConnection = nil
 local hiddenAtmospheres = {}
 addToggleRow(gfxPage, "🌤️ Remove Fog", "Menghapus kabut & suasana", 372, function(isOn)
@@ -1526,7 +1658,8 @@ addToggleRow(gfxPage, "🌤️ Remove Fog", "Menghapus kabut & suasana", 372, fu
     end
 end)
 
-gfxPage.CanvasSize = UDim2.new(0, 0, 0, 430)
+gfxPage.CanvaasSize = UDim2.new(0, 0, 0, 435)
 
 pages.Way.Visible = true
 refreshWaypointList()
+a
