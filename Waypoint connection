@@ -1,5 +1,5 @@
 -- ============================================================
--- SCRIPT: STRN BP / BYPASS (FULL OPTIMIZED V3)
+-- SCRIPT: STRN BP / BYPASS (FULL OPTIMIZED V3 - HUB INTEGRATED)
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -317,6 +317,14 @@ end)
 
 getgenv().ToggleSTRNBypass = function()
     frame.Visible = not frame.Visible
+    gui.Enabled = true
+    
+    local mainHub = PlayerGui:FindFirstChild("STRN HUB v2")
+    if mainHub and mainHub:FindFirstChild("MainFrame") then
+        if frame.Visible then
+            mainHub.MainFrame.Visible = false
+        end
+    end
 end
 
 local function enableDrag(dragObj, targetObj)
@@ -1658,8 +1666,7 @@ addToggleRow(gfxPage, "🌤️ Remove Fog", "Menghapus kabut & suasana", 372, fu
     end
 end)
 
-gfxPage.CanvaasSize = UDim2.new(0, 0, 0, 435)
+gfxPage.CanvasSize = UDim2.new(0, 0, 0, 435)
 
 pages.Way.Visible = true
 refreshWaypointList()
-a
